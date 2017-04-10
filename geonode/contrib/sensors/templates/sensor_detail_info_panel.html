@@ -1,0 +1,76 @@
+{% load i18n %}
+<script>
+
+    function toggleObservableProperty(id) {
+        var save_btn = $("#save-btn");
+        save_btn.removeAttr("disabled");
+
+
+        var prop_elem = $("#"+id);
+        var prop_name = prop_elem.val();
+
+        //observed props is passed over as comma separated string in this case
+        var sel_props_elem = $("#selected_observable_props");
+        var sel_props = sel_props_elem.val();
+
+        var sel_props_array = [];
+        if(sel_props != "") {
+            sel_props_array = sel_props.split(',');
+        }
+
+        var foundIndex = sel_props_array.indexOf(prop_name);
+        if(prop_elem.is(':checked')) {
+            //the property doesnt exist so add it to the field value
+            if (foundIndex == -1) {
+                //add the item and convert the array back to a string
+                sel_props_array.push(prop_name);
+                sel_props = sel_props_array.join();
+                sel_props_elem.val(sel_props);
+            }
+        }
+        else {
+            //we found the property name but we have deselected so remove it
+            if(foundIndex > -1) {
+               //remove the item from the array and convert back to string
+                sel_props_array.splice(foundIndex, 1);
+                sel_props = sel_props_array.join();
+                sel_props_elem.val(sel_props);
+            }
+        }
+    }
+</script>
+<article  class="description tab-pane active" id="info">
+    <form id="sensor-update" method="post">
+    {% csrf_token %}
+    <input id="selected_observable_props" name="selected-observable-props" type="hidden" value="{{ sel_obs_props_string }}" style="display:none" />
+    <dl class="dl-horizontal">
+        <dt>{% trans "Server URL" %}</dt>
+        <dd>{{ resource.server.url }}</dd>
+        <dt>{% trans "Offering ID" %}</dt>
+        <dd>{{ resource.offering_id }}</dd>
+        <dt>{% trans "Time Range" %}</dt>
+        <dd>{{ resource.start_time }}</dd>
+        <dd>{{ resource.end_time }}</dd>
+        <dt>{% trans "User Start Time" %}</dt>
+        <dd>{{ resource.user_start_time }}</dd>
+        <dt>{% trans "User End Time" %}</dt>
+        <dd>{{ resource.user_end_time }}</dd>
+        <dt>{% trans "Properties" %}</dt>
+
+        {% for prop in resource.observable_props %}
+            {%  if prop in resource.selected_observable_props %}
+               <dd><input type="checkbox" value="{{ prop }}" id="obs-prop-{{ forloop.counter0 }}" onclick="toggleObservableProperty('obs-prop-{{ forloop.counter0 }}')" style="margin-right:5px" checked/>{{ prop }}</dd>
+            {% else %}
+                <dd><input type="checkbox" value="{{ prop }}" id="obs-prop-{{ forloop.counter0 }}" onclick="toggleObservableProperty('obs-prop-{{ forloop.counter0 }}')" style="margin-right:5px"/>{{ prop }}</dd>
+            {%  endif %}
+        {% endfor %}
+        {% if GEONODE_SECURITY_ENABLED %}
+            <dd>
+                <br>
+                <input id="save-btn" class="btn btn-primary" type="submit" value="Save Changes" disabled/>
+                <input class="btn btn-default" type="button" value="Refresh"/>
+            </dd>
+        {% endif %}
+    </dl>
+    </form>
+</article>

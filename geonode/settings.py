@@ -239,7 +239,6 @@ GEONODE_APPS = (
     'geonode.layers',
     'maploom',
     'geonode.maps',
-    'geonode.sensors',
     'geonode.proxy',
     'geonode.security',
     'geonode.social',
@@ -269,6 +268,7 @@ GEONODE_CONTRIB_APPS = (
     'geonode.contrib.geogig',
     'geonode.contrib.geosites',
     'geonode.contrib.nlp',
+    'geonode.contrib.sensors',
     'geonode.contrib.slack',
     'geonode.contrib.metadataxsl'
 )

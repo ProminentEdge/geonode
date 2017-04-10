@@ -39,8 +39,6 @@ from tastypie.utils.mime import build_content_type
 
 from geonode.layers.models import Layer
 from geonode.maps.models import Map
-from geonode.sensors.models import SensorServer
-from geonode.sensors.models import Sensor
 from geonode.documents.models import Document
 from geonode.base.models import ResourceBase
 from geonode.base.models import HierarchicalKeyword
@@ -572,23 +570,6 @@ class MapResource(CommonModelApi):
         if settings.RESOURCE_PUBLISHING:
             queryset = queryset.filter(is_published=True)
         resource_name = 'maps'
-
-class SensorServerResource(ModelResource):
-    class Meta:
-        queryset = SensorServer.objects.all()
-        resource_name = 'sensorservers'
-
-class SensorResource(ModelResource):
-
-    """Sensors API"""
-    server = fields.ForeignKey(SensorServerResource, 'server', full=True)
-
-    class Meta(CommonMetaApi):
-        queryset = Sensor.objects.distinct().order_by('-date')
-        if settings.RESOURCE_PUBLISHING:
-            queryset = queryset.filter(is_published=True)
-        resource_name = 'sensors'
-
 
 
 class DocumentResource(CommonModelApi):

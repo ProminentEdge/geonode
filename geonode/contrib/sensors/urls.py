@@ -18,23 +18,23 @@
 #
 #########################################################################
 
-from tastypie.api import Api
+from django.conf.urls import patterns, url
+from django.conf import settings
+from django.views.generic import TemplateView
+from geonode.api.urls import api
+from geonode.contrib.sensors.resources import SensorServerResource, SensorResource
 
-from .api import TagResource, TopicCategoryResource, ProfileResource, \
-    GroupResource, RegionResource, OwnersResource
-from .resourcebase_api import LayerResource, MapResource, DocumentResource, \
-    ResourceBaseResource, FeaturedResourceBaseResource
+api.register(SensorServerResource())
+api.register(SensorResource())
 
-api = Api(api_name='api')
+js_info_dict = {
+    'packages': ('geonode.contrib.sensors',),
+}
 
-api.register(LayerResource())
-api.register(MapResource())
-api.register(DocumentResource())
-api.register(ProfileResource())
-api.register(ResourceBaseResource())
-api.register(TagResource())
-api.register(RegionResource())
-api.register(TopicCategoryResource())
-api.register(GroupResource())
-api.register(FeaturedResourceBaseResource())
-api.register(OwnersResource())
+urlpatterns = patterns(
+    'geonode.contrib.sensors.views',
+    url(r'^$', TemplateView.as_view(template_name='sensors_list.html'), name='sensors_browse'),
+    url(r'^add$', 'sensors_add', name='sensors_add'),
+    url(r'^(?P<sensor_id>[^/]*)$', 'sensor_detail', name="sensor_detail"),
+    #url(r'^add/connect$', 'sensors_add_connect', name='sensors_add_connect'),
+)

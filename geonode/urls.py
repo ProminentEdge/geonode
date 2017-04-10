@@ -62,9 +62,6 @@ urlpatterns = patterns('',
                        # Map views
                        (r'^maps/', include('geonode.maps.urls')),
 
-                       # Sensor views
-                       (r'^sensors/', include('geonode.sensors.urls')),
-
                        # Catalogue views
                        (r'^catalogue/', include('geonode.catalogue.urls')),
 
@@ -121,6 +118,11 @@ if "geonode.contrib.dynamic" in settings.INSTALLED_APPS:
 if "geonode.contrib.metadataxsl" in settings.INSTALLED_APPS:
     urlpatterns += patterns('',
                             (r'^showmetadata/', include('geonode.contrib.metadataxsl.urls')),
+                            )
+
+if "geonode.contrib.sensors" in settings.INSTALLED_APPS:
+    urlpatterns += patterns('',
+                            (r'^sensors/', include('geonode.contrib.sensors.urls')),
                             )
 
 if 'geonode.geoserver' in settings.INSTALLED_APPS:

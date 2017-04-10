@@ -1,0 +1,208 @@
+{% extends "sensors_base.html" %}
+{% load i18n %}
+{% load staticfiles %}
+
+{% block title %} {% trans "Add Sensors"  %} - {{ block.super }}  {% endblock %}
+
+{% block body_class %}Add Sensors{% endblock %}
+
+
+{% block head %}
+
+{{ block.super }}
+{% endblock %}
+
+{% block body_outer %}
+<div class="page-header">
+  <a href="{% url "sensors_browse" %}" class="btn btn-primary pull-right">{% trans "Explore Sensors" %}</a>
+  <h2 class="page-title">{% trans "Add Sensors" %}</h2>
+
+
+</div>
+<div class="row">
+  <div class="col-md-8">
+    {% block additional_info %}{% endblock %}
+
+    {% if errors %}
+    <div id="errors" class="alert alert-danger">
+      {% for error in errors %}
+      <p>{{ error }}</p>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    <div id="upload-status"></div>
+
+    <h4>{% trans "OSH Server URL" %}</h4>
+
+    <form id="sensor-connect" method="get">
+      <!-- UI to Connect to Sensor Server -->
+        <div>
+            <input type="text" name="serverUrl" size="36" id="server-input" placeholder="e.g. http://sensiasoft.com:8181/sensorhub"  value = "{{ serverUrl }}">
+             <input class="btn btn-default" type="submit" value="{% trans "Connect" %}">
+        </div>
+    </form>
+    <div>
+    <br>
+    <script>
+        function toggleSensor(id) {
+            //toggle the on/off button and also toggle visibility of the editable info
+            if($("#sensor-button-"+id).attr("value") == "On") {
+                $("#sensor-button-"+id).attr("value", "Off");
+                $("#sensor-button-"+id).attr("class", "btn btn-default");
+                $("#start-time-"+id).css("display", "none");
+                $("#end-time-"+id).css("display", "none");
+                $("#props-"+id).css("display", "none");
+            }
+            else {
+                $("#sensor-button-"+id).attr("value", "On");
+                $("#sensor-button-"+id).attr("class", "btn btn-success");
+                $("#start-time-"+id).css("display", "");
+                $("#end-time-"+id).css("display", "");
+                $("#props-"+id).css("display", "");
+            }
+        }
+
+        function toggleObservableProperty(id) {
+            var prop_elem = $("#"+id);
+            var prop_name = prop_elem.val();
+            var formId = id.split('-')[1];
+
+            //observed props is passed over from Django as an array, but we will convert it to
+            //a comma delimited string here so it can be assigned neatly in an HTML attribute
+            var observed_props_elem = $("#id_form-" + formId + "-observable_props");
+            var observed_props = observed_props_elem.val();
+
+            if(observed_props.indexOf('[') > -1) {
+                observed_props = observed_props.replace(/\'/g, "\"");
+                observed_props = JSON.parse(observed_props);
+                observed_props = observed_props.join();
+                observed_props_elem.val(observed_props);
+            }
+
+            var selected_observed_props_elem = $("#id_form-" + formId + "-selected_observable_props");
+            var sel_props = selected_observed_props_elem.val();
+            var props_array = [];
+            if(sel_props != "") {
+                props_array = sel_props.split(',');
+            }
+
+            var foundIndex = props_array.indexOf(prop_name);
+            if(prop_elem.is(':checked')) {
+                //the property doesnt exist so add it to the field value
+                if (foundIndex == -1) {
+                    //add the item and convert the array back to a string
+                    props_array.push(prop_name);
+                    sel_props = props_array.join();
+                    selected_observed_props_elem.val(sel_props);
+                }
+            }
+            else {
+                //we found the property name but we have deselected so remove it
+                if(foundIndex > -1) {
+                   //remove the item from the array and convert back to string
+                    props_array.splice(foundIndex, 1);
+                    sel_props = props_array.join();
+                    selected_observed_props_elem.val(sel_props);
+                }
+            }
+        }
+    </script>
+    <form id="sensor-submit" method="post">
+    {% csrf_token %}
+    {{ formset.management_form }}
+    {% for sensor_form in formset.forms  %}
+        <div style ="border-bottom-width:1px; border-bottom-style:solid; border-bottom-color:#DDDDDD"></div>
+        <br>
+        <table>
+        {% for field in sensor_form %}
+            <col style="width:100px">
+            <col style="width:512px">
+
+            {% if field.name == "user_start_time" %}
+                <tr id="start-time-{{forloop.parentloop.counter0}}" style="display:none;">
+                <td>{{ field.label_tag }}</td>
+                <td>{{ field }}</td>
+            {% elif field.name == "user_end_time" %}
+                <tr id="end-time-{{forloop.parentloop.counter0}}" style="display:none;">
+                <td>{{ field.label_tag }}</td>
+                <td>{{ field }}</td>
+            {% elif field.name == "observable_props" %}
+                <tr id="props-{{forloop.parentloop.counter0}}" style="display:none;">
+            {% else %}
+                <tr>
+            {% endif %}
+
+            {% if field.name == "offering_id" %}
+                <td style = "height:32px"> <input class="btn btn-default" name="{{ field.value }}" id="sensor-button-{{forloop.parentloop.counter0}}" onClick="toggleSensor('{{forloop.parentloop.counter0}}')" style ="width:60px" type="text" value="{% trans "Off" %}" readonly/></td>
+                <td><h4>{{ field.value }}</h4></td>
+                 <td style="display:none">{{ field }}</td>
+            {% elif field.name == "description" %}
+                <td>{{ field.label_tag }}</td>
+                <td>{{ field.value }}</td>
+                <td style="display:none">{{ field }}</td>
+            {% elif field.name == "start_time" %}
+                <td><label>Time Range:</label></td>
+                <td>{{ field.value}}</td>
+                <td style="display:none">{{ field }}</td>
+            {% elif field.name == "end_time" %}
+                <td></td>
+                <td>{{ field.value}}</td>
+                <td style="display:none">{{ field }}</td>
+            {% elif field.name == "observable_props" %}
+                <td>{{ field.label_tag }}</td>
+                <td>
+                {% for prop in field.value %}
+                    <br><input type="checkbox" id="checkbox-{{ forloop.parentloop.parentloop.counter0 }}-{{ forloop.counter0 }}" onClick="toggleObservableProperty('checkbox-{{ forloop.parentloop.parentloop.counter0 }}-{{ forloop.counter0 }}')"
+                               style="margin-right:5px" name="form-{{ forloop.parentloop.parentloop.counter0 }}-user_props" value="{{ prop }}"/>{{ prop }}
+                {% endfor %}
+                </td>
+                <td style="display:none">{{ field }}</td>
+            {% else %}
+                 <td style="display:none">{{ field }}</td>
+            {% endif %}
+            </tr>
+        {% endfor %}
+        </table>
+        <br>
+    {% endfor %}
+    <input class="btn btn-default" type="submit" value="{% trans "Save" %}">
+    </form>
+    </div>
+  </div>
+
+  {% if GEONODE_SECURITY_ENABLED %}
+  <div class="col-md-4">
+    <h3>{% trans "Permissions"  %}</h3>
+    <form id="permission_form">
+      {% include "_permissions.html" %}
+    </form>
+  </div>
+  {% endif %}
+</div>
+{% endblock %}
+
+
+{% block extra_script %}
+<script data-main="{% static 'geonode/js/upload/main' %}"
+  src="{% static 'lib/js/require.js' %}">
+</script>
+<script type="text/javascript">
+{% autoescape off %}
+
+  csrf_token =  "{{ csrf_token }}",
+  form_target = "{{ UPLOADER_URL }}",
+  geogig_enabled = {{ GEOGIG_ENABLED|lower  }},
+  time_enabled = {{ TIME_ENABLED|lower  }},
+  mosaic_enabled = {{ MOSAIC_ENABLED|lower  }},
+  userLookup = "{% url "geonode.views.ajax_lookup" %}"
+
+{% endautoescape %}
+
+</script>
+{% if GEONODE_SECURITY_ENABLED %}
+{% with resource=layer %}
+{% include "_permissions_form_js.html" %}
+{% endwith %}
+{% endif %}
+{% endblock extra_script %}
