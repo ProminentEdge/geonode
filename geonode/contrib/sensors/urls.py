@@ -18,14 +18,11 @@
 #
 #########################################################################
 
-from django.conf.urls import patterns, url
-from django.conf import settings
-from django.views.generic import TemplateView
-from geonode.api.urls import api
-from geonode.contrib.sensors.resources import SensorServerResource, SensorResource
 
-api.register(SensorServerResource())
-api.register(SensorResource())
+from django.conf.urls import patterns, url, include
+from django.views.generic import TemplateView
+from geonode.contrib.sensors.api import api
+
 
 js_info_dict = {
     'packages': ('geonode.contrib.sensors',),
@@ -33,6 +30,7 @@ js_info_dict = {
 
 urlpatterns = patterns(
     'geonode.contrib.sensors.views',
+    url(r'', include(api.urls)),
     url(r'^$', TemplateView.as_view(template_name='sensors_list.html'), name='sensors_browse'),
     url(r'^add$', 'sensors_add', name='sensors_add'),
     url(r'^(?P<sensor_id>[^/]*)$', 'sensor_detail', name="sensor_detail"),

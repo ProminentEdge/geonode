@@ -262,19 +262,19 @@ GEONODE_APPS = (
 
 GEONODE_CONTRIB_APPS = (
     # GeoNode Contrib Apps
-    'geonode.contrib.dynamic',
-    'geonode.contrib.exif',
-    'geonode.contrib.favorite',
-    'geonode.contrib.geogig',
-    'geonode.contrib.geosites',
-    'geonode.contrib.nlp',
-    'geonode.contrib.sensors',
-    'geonode.contrib.slack',
-    'geonode.contrib.metadataxsl'
+    #'geonode.contrib.dynamic',
+    #'geonode.contrib.exif',
+    #'geonode.contrib.favorite',
+    #'geonode.contrib.geogig',
+    #'geonode.contrib.geosites',
+    #'geonode.contrib.nlp',
+    'geonode.contrib.sensors'
+    #'geonode.contrib.slack',
+    #'geonode.contrib.metadataxsl'
 )
 
 # Uncomment the following line to enable contrib apps
-# GEONODE_APPS = GEONODE_APPS + GEONODE_CONTRIB_APPS
+GEONODE_APPS = GEONODE_APPS + GEONODE_CONTRIB_APPS
 
 INSTALLED_APPS = (
 

@@ -107,7 +107,6 @@ urlpatterns = patterns('',
                        (r'^groups/', include('geonode.groups.urls')),
                        (r'^documents/', include('geonode.documents.urls')),
                        (r'^services/', include('geonode.services.urls')),
-                       url(r'', include(api.urls)),
                        )
 
 if "geonode.contrib.dynamic" in settings.INSTALLED_APPS:
@@ -159,3 +158,8 @@ urlpatterns += patterns('',
 
 # Maploom patterns
 urlpatterns += maploom_urls
+
+#finally add the api urls, we do this last to give the contrib modules above a chance to register
+urlpatterns += patterns('',
+                        url(r'', include(api.urls)),
+                        )
