@@ -268,7 +268,7 @@ GEONODE_CONTRIB_APPS = (
     #'geonode.contrib.geogig',
     #'geonode.contrib.geosites',
     #'geonode.contrib.nlp',
-    'geonode.contrib.sensors'
+    'geonode.contrib.geonode_opensensorhub',
     #'geonode.contrib.slack',
     #'geonode.contrib.metadataxsl'
 )

@@ -38,3 +38,4 @@ api.register(TopicCategoryResource())
 api.register(GroupResource())
 api.register(FeaturedResourceBaseResource())
 api.register(OwnersResource())
+

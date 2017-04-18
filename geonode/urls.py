@@ -107,6 +107,7 @@ urlpatterns = patterns('',
                        (r'^groups/', include('geonode.groups.urls')),
                        (r'^documents/', include('geonode.documents.urls')),
                        (r'^services/', include('geonode.services.urls')),
+                       url(r'', include(api.urls)),
                        )
 
 if "geonode.contrib.dynamic" in settings.INSTALLED_APPS:
@@ -119,9 +120,9 @@ if "geonode.contrib.metadataxsl" in settings.INSTALLED_APPS:
                             (r'^showmetadata/', include('geonode.contrib.metadataxsl.urls')),
                             )
 
-if "geonode.contrib.sensors" in settings.INSTALLED_APPS:
+if "geonode.contrib.geonode_opensensorhub" in settings.INSTALLED_APPS:
     urlpatterns += patterns('',
-                            (r'^sensors/', include('geonode.contrib.sensors.urls')),
+                            (r'', include('geonode.contrib.geonode_opensensorhub.urls')),
                             )
 
 if 'geonode.geoserver' in settings.INSTALLED_APPS:
@@ -159,7 +160,3 @@ urlpatterns += patterns('',
 # Maploom patterns
 urlpatterns += maploom_urls
 
-#finally add the api urls, we do this last to give the contrib modules above a chance to register
-urlpatterns += patterns('',
-                        url(r'', include(api.urls)),
-                        )

@@ -2,26 +2,14 @@ import uuid
 import logging
 import json
 
-from datetime import datetime
-
-
 from django.db import models
 from django.db.models import signals
-from django.contrib.contenttypes.models import ContentType
-from django.conf import settings
-from django.utils.translation import ugettext_lazy as _
-from django.core.urlresolvers import reverse
-from django.core.files.storage import FileSystemStorage
 
 from geonode.base.models import ResourceBase, ResourceBaseManager, resourcebase_post_save
 from geonode.maps.models import Map
 from geonode.people.utils import get_valid_user
-from agon_ratings.models import OverallRating
-from geonode.utils import check_shp_columnnames
-from geonode.security.models import remove_object_permissions
-from django.utils.timezone import now
 
-logger = logging.getLogger("geonode.sensors.models")
+logger = logging.getLogger("geonode.contrib.geonode_opensensorhub.models")
 
 
 class SensorServer(models.Model):

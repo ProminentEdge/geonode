@@ -35,7 +35,6 @@ from geonode.base.models import ResourceBase
 from geonode.base.models import TopicCategory
 from geonode.base.models import Region
 from geonode.layers.models import Layer
-from geonode.sensors.models import Sensor
 from geonode.maps.models import Map
 from geonode.documents.models import Document
 from geonode.groups.models import GroupProfile
@@ -51,7 +50,6 @@ from tastypie.utils import trailing_slash
 
 FILTER_TYPES = {
     'layer': Layer,
-    'sensor': Sensor,
     'map': Map,
     'document': Document
 }

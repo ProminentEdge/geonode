@@ -6,8 +6,8 @@ from tastypie import fields
 from geonode.api.api import FILTER_TYPES
 from geonode.api.urls import api
 from geonode.api.resourcebase_api import CommonMetaApi
-from geonode.contrib.sensors.models import SensorServer
-from geonode.contrib.sensors.models import Sensor
+from geonode.contrib.geonode_opensensorhub.models import SensorServer
+from geonode.contrib.geonode_opensensorhub.models import Sensor
 
 FILTER_TYPES['sensor'] = Sensor
 

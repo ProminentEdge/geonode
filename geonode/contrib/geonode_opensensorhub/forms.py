@@ -2,7 +2,7 @@ from django import forms
 from django.forms.extras import SelectDateWidget
 #from django.forms.extras import SplitDateTimeWidget
 from django.forms.widgets import SplitDateTimeWidget
-from geonode.contrib.sensors.models import Sensor
+from geonode.contrib.geonode_opensensorhub.models import Sensor
 
 DATE_FORMAT = '%m/%d/%Y'
 TIME_FORMAT = '%I:%M %p'

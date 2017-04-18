@@ -17,8 +17,8 @@ from django.template import RequestContext
 from django.utils.translation import ugettext as _
 
 from geonode.utils import resolve_object
-from geonode.contrib.sensors.forms import SensorForm
-from geonode.contrib.sensors.models import Sensor, SensorServer
+from geonode.contrib.geonode_opensensorhub.forms import SensorForm
+from geonode.contrib.geonode_opensensorhub.models import Sensor, SensorServer
 from geonode.services.models import Service
 from geonode.security.views import _perms_info_json
 

@@ -1,5 +1,5 @@
 from haystack import indexes
-from geonode.contrib.sensors.models import Sensor
+from geonode.contrib.geonode_opensensorhub.models import Sensor
 
 class SensorIndex(indexes.SearchIndex, indexes.Indexable):
     id = indexes.IntegerField(model_attr='id')
