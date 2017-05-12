@@ -9,6 +9,7 @@ import dateutil.parser
 from django.contrib.auth.decorators import login_required
 from django.http import HttpResponse, HttpResponseRedirect
 from django.core.urlresolvers import reverse
+from django.core.exceptions import ValidationError
 from django.shortcuts import render
 from django.shortcuts import render_to_response
 from django.forms import formset_factory
@@ -42,7 +43,7 @@ class doublequote_dict(dict):
 def _resolve_sensor(request, typename, permission='base.view_resourcebase',
                    msg=_PERMISSION_MSG_GENERIC, **kwargs):
     """
-    Resolve the layer by the provided typename (which may include service name) and check the optional permission.
+    Resolve the sensor by the provided typename (which may include service name) and check the optional permission.
     """
     service_typename = typename.split(":", 1)
 
@@ -93,7 +94,8 @@ def sensors_add(request, template='sensors_add.html'):
 
             for offering in offering_list:
                 name = offering.find('swes:name', ns)
-                id = offering.find('swes:identifier', ns)
+                procedure_id = offering.find('swes:procedure', ns)
+                offering_id = offering.find('swes:identifier', ns)
                 desc = offering.find('swes:description', ns)
 
                 # get all the info we need for the offering (name, desc, time range, etc.)
@@ -103,23 +105,26 @@ def sensors_add(request, template='sensors_add.html'):
                         offeringInfo['start_time'] = 'now'
                         offeringInfo['user_start_time'] = datetime.now()
                     else:
-                        offeringInfo['start_time'] = begin_time.text.replace('T', ' ')
+                        offeringInfo['start_time'] = begin_time.text.replace('T', ' ').replace('Z', '')
                         offeringInfo['user_start_time'] = dateutil.parser.parse(begin_time.text)
                 for end_time in offering.iterfind('*//gml:endPosition', ns):
                     if end_time.text is None:
                         offeringInfo['end_time'] = 'now'
                         offeringInfo['user_end_time'] = datetime.now()
                     else:
-                        offeringInfo['end_time'] = end_time.text.replace('T', ' ')
+                        offeringInfo['end_time'] = end_time.text.replace('T', ' ').replace('Z', '')
                         offeringInfo['user_end_time'] = dateutil.parser.parse(end_time.text)
                 offeringInfo['name'] = name.text
-                offeringInfo['offering_id'] = id.text
+                offeringInfo['procedure_id'] = procedure_id.text
+                offeringInfo['offering_id'] = offering_id.text
                 offeringInfo['description'] = desc.text
                 offeringInfo['observable_props'] = []
                 offeringInfo['selected_observable_props'] = ""
+                offeringInfo['config_name'] = ""
+                offeringInfo['temp_enabled'] = False
 
                 for observable_property in offering.findall('swes:observableProperty', ns):
-                    offeringInfo['observable_props'].append(observable_property.text)# = "disabled"
+                    offeringInfo['observable_props'].append(observable_property.text)
 
                 req_context['offerings'].append(offeringInfo)
 
@@ -130,40 +135,52 @@ def sensors_add(request, template='sensors_add.html'):
         else:
             return render(request, template)
     elif request.method == 'POST':
-        active_offerings = []
-        debug = ''
+
         global req_context
         global serverUrl
+
+        active_offerings = []
+
+        #first keep track of the active offerings
+        req_context['errors'] = []
         for offering in req_context['offerings']:
-             if request.POST[offering['offering_id']] == "On":
-                 active_offerings.append(offering['offering_id'])
+             if request.POST[offering['procedure_id']] == "On":
+                 active_offerings.append(offering['procedure_id'])
+                 offering['temp_enabled'] = True
 
         sensor_formset = formset_factory(SensorForm, extra=0)
         formset = sensor_formset(request.POST)
+        returned_formset = sensor_formset(initial=req_context['offerings'])
+        req_context['formset'] = returned_formset
+
+        count = 0
         if (len(active_offerings) != 0):
             for sensor_form in formset:
-                if sensor_form.is_valid():
-                    for active_offering in active_offerings:
-                        sensor_model = sensor_form.save(commit=False)
-                        if sensor_model.offering_id == active_offering:
-                            debug += sensor_form.cleaned_data['selected_observable_props']
-                            debug += sensor_form.cleaned_data['observable_props']
-                            try:
-                                server = SensorServer.objects.get(url=serverUrl)
-                            except SensorServer.DoesNotExist:
-                                server = SensorServer(url=serverUrl)
-                            server.save()
-                            sensor_model.server = server
-                            sensor_model.save()
-                else:
-                    for field in sensor_form:
-                        for error in field.errors:
-                            debug += str(count) + ' : ' + field.label + ' : ' + error + '<br>'
-                    count += 1
-                    return render_to_response(template, RequestContext(request, req_context))
+                #sensor_form.data.set('form-'+str(count)+'-temp_enabled', "")
+                if sensor_form.data.get('form-'+str(count)+'-temp_enabled', "") != "":
+                    if sensor_form.is_valid():
+                        for active_offering in active_offerings:
+                            sensor_model = sensor_form.save(commit=False)
+                            if sensor_model.procedure_id == active_offering:
+                                try:
+                                    server = SensorServer.objects.get(url=serverUrl)
+                                except SensorServer.DoesNotExist:
+                                    server = SensorServer(url=serverUrl)
+                                server.save()
+                                sensor_model.server = server
+                                sensor_model.save()
+                    else:
+                        for field in sensor_form:
+                            for error in field.errors:
+                                req_context['errors'].append(sensor_form.cleaned_data['procedure_id'] + ': ' + field.label + ' - ' + error)
+                count += 1
+            if len(req_context['errors']) != 0:
+                return render_to_response(template, RequestContext(request, req_context))
+                #return HttpResponse(req_context['formset'], status=200)
+            else:
+                return HttpResponseRedirect(reverse('sensors_browse'))
         else:
             return render_to_response(template, RequestContext(request, req_context))
-        return HttpResponseRedirect(reverse('sensors_browse'))
 
 
 def sensor_detail(request, sensor_id, template='sensor_detail.html'):
@@ -189,6 +206,9 @@ def sensor_detail(request, sensor_id, template='sensor_detail.html'):
         sel_obs_props_string = sensor.selected_observable_props
         sensor.selected_observable_props = sensor.selected_observable_props.split(',')
 
+        sensor.user_start_time = sensor.user_start_time.isoformat().replace('T', ' ')
+        sensor.user_end_time = sensor.user_end_time.isoformat().replace('T', ' ')
+
         req_context = {
             "resource": sensor,
             "obs_props_string": obs_props_string,
@@ -209,6 +229,7 @@ def sensor_detail(request, sensor_id, template='sensor_detail.html'):
 
     if request.method == 'POST':
         global req_context
+        errors = []
 
         try:
             sensor = Sensor.objects.get(id=req_context['resource'].id)
@@ -217,13 +238,32 @@ def sensor_detail(request, sensor_id, template='sensor_detail.html'):
             pass
 
         sensor.selected_observable_props = request.POST['selected-observable-props']
-        sensor.save()
+        sensor.user_start_time = request.POST['user-start-time']
+        sensor.user_end_time = request.POST['user-end-time']
+
+        start_time = dateutil.parser.parse(sensor.start_time)
+        end_time = dateutil.parser.parse(sensor.end_time)
+
+        #do preliminary error checking before trying to save the sensor
+        if dateutil.parser.parse(sensor.user_start_time) >= dateutil.parser.parse(sensor.user_end_time):
+            errors.append('invalid time range: start time must occur before end time')
+        if dateutil.parser.parse(sensor.user_start_time) < start_time or dateutil.parser.parse(sensor.user_start_time) >= end_time:
+            errors.append('invalid time range: specified start time is out of range')
+        if dateutil.parser.parse(sensor.user_end_time) > end_time or dateutil.parser.parse(sensor.user_end_time) <= start_time:
+            errors.append('invalid time range: specified end time is out of range')
+
+        if len(errors) == 0:
+            try:
+                sensor.save()
+            except ValidationError, err:
+                errors.append('; '.join(err.messages))
 
         obs_props_string = sensor.observable_props
         sensor.observable_props = sensor.observable_props.split(',')
 
         sel_obs_props_string = sensor.selected_observable_props
         sensor.selected_observable_props = sensor.selected_observable_props.split(',')
+
         req_context = {
             "resource": sensor,
             "obs_props_string": obs_props_string,
@@ -232,6 +272,7 @@ def sensor_detail(request, sensor_id, template='sensor_detail.html'):
             #"permissions_json": _perms_info_json(sensor),
             #"metadata": metadata,
             "is_layer": False,
+            "errors": errors
         }
 
         return render_to_response(template, RequestContext(request, req_context))

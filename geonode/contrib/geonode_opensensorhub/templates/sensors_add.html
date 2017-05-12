@@ -53,6 +53,8 @@
                 $("#start-time-"+id).css("display", "none");
                 $("#end-time-"+id).css("display", "none");
                 $("#props-"+id).css("display", "none");
+                $("#config_name-"+id).css("display", "none");
+                $("#id_form-"+id+"-temp_enabled").prop("checked", false);
             }
             else {
                 $("#sensor-button-"+id).attr("value", "On");
@@ -60,6 +62,8 @@
                 $("#start-time-"+id).css("display", "");
                 $("#end-time-"+id).css("display", "");
                 $("#props-"+id).css("display", "");
+                $("#config_name-"+id).css("display", "");
+                $("#id_form-"+id+"-temp_enabled").prop("checked", true);
             }
         }
 
@@ -116,34 +120,68 @@
         <br>
         <table>
         {% for field in sensor_form %}
-            <col style="width:100px">
-            <col style="width:512px">
+            <!--<col style="width:100px">
+            <col style="width:512px">-->
 
             {% if field.name == "user_start_time" %}
-                <tr id="start-time-{{forloop.parentloop.counter0}}" style="display:none;">
-                <td>{{ field.label_tag }}</td>
-                <td>{{ field }}</td>
+                <tr id="start-time-{{forloop.parentloop.counter0}}"
+                    {% if sensor_form.temp_enabled.value == True %}
+
+                    {% else %}
+                        style="display:none;"
+                    {% endif %} >
+                    <td>{{ field.label_tag }}</td>
+                    <td>{{ field }}</td>
             {% elif field.name == "user_end_time" %}
-                <tr id="end-time-{{forloop.parentloop.counter0}}" style="display:none;">
-                <td>{{ field.label_tag }}</td>
-                <td>{{ field }}</td>
+                <tr id="end-time-{{forloop.parentloop.counter0}}"
+                    {% if sensor_form.temp_enabled.value == True %}
+
+                    {% else %}
+                        style="display:none;"
+                    {% endif %} >
+                    <td>{{ field.label_tag }}</td>
+                    <td>{{ field }}</td>
             {% elif field.name == "observable_props" %}
-                <tr id="props-{{forloop.parentloop.counter0}}" style="display:none;">
+                <tr id="props-{{forloop.parentloop.counter0}}"
+                    {% if sensor_form.temp_enabled.value == True %}
+
+                    {% else %}
+                        style="display:none;"
+                    {% endif %} >
+            {% elif field.name == "config_name" %}
+                <tr id="config_name-{{forloop.parentloop.counter0}}"
+                    {% if sensor_form.temp_enabled.value == True %}
+
+                    {% else %}
+                        style="display:none;"
+                    {% endif %} >
+                    <td><label>Configuration Name:</label></td>
+                    <td>{{ field }}</td>
+             {% elif field.name == "temp_enabled" %}
+                <tr id="temp_enabled-{{forloop.parentloop.counter0}}" style="display:none">
+                <td>{{ field }}</td>
             {% else %}
                 <tr>
             {% endif %}
 
-            {% if field.name == "offering_id" %}
-                <td style = "height:32px"> <input class="btn btn-default" name="{{ field.value }}" id="sensor-button-{{forloop.parentloop.counter0}}" onClick="toggleSensor('{{forloop.parentloop.counter0}}')" style ="width:60px" type="text" value="{% trans "Off" %}" readonly/></td>
-                <td><h4>{{ field.value }}</h4></td>
-                 <td style="display:none">{{ field }}</td>
+            {% if field.name == "procedure_id" %}
+                <td style = "height:32px"> <input name="{{ field.value }}" id="sensor-button-{{forloop.parentloop.counter0}}"
+                    onClick="toggleSensor('{{forloop.parentloop.counter0}}')" style ="width:60px" type="text"
+                    {% if sensor_form.temp_enabled.value == True %}
+                      value="{% trans 'On' %}" class="btn btn-success"
+                    {% else %}
+                      value="{% trans 'Off' %}" class="btn btn-default"
+                    {% endif %}
+                    readonly/></td>
+                <td><h4>{{ sensor_form.name.value }}<br> [{{ field.value }}] </h4></td>
+                <td style="display:none">{{ field }}</td>
             {% elif field.name == "description" %}
                 <td>{{ field.label_tag }}</td>
                 <td>{{ field.value }}</td>
                 <td style="display:none">{{ field }}</td>
             {% elif field.name == "start_time" %}
                 <td><label>Time Range:</label></td>
-                <td>{{ field.value}}</td>
+                <td>{{ field.value }}</td>
                 <td style="display:none">{{ field }}</td>
             {% elif field.name == "end_time" %}
                 <td></td>
@@ -154,11 +192,13 @@
                 <td>
                 {% for prop in field.value %}
                     <br><input type="checkbox" id="checkbox-{{ forloop.parentloop.parentloop.counter0 }}-{{ forloop.counter0 }}" onClick="toggleObservableProperty('checkbox-{{ forloop.parentloop.parentloop.counter0 }}-{{ forloop.counter0 }}')"
-                               style="margin-right:5px" name="form-{{ forloop.parentloop.parentloop.counter0 }}-user_props" value="{{ prop }}"/>{{ prop }}
+                               style="margin-right:5px" name="form-{{ forloop.parentloop.parentloop.counter0 }}-user_props" value="{{ prop }}" {% if prop in sensor_form.selected_observable_props.value %} checked {% endif %} />{{ prop }}
                 {% endfor %}
                 </td>
                 <td style="display:none">{{ field }}</td>
-            {% else %}
+            {% elif field.name == "config_name" or field.name == "user_start_time" or field.name == "user_end_time" %}
+                <!-- do nothing since we do not need to stash a hidden field -->
+            {% else  %}
                  <td style="display:none">{{ field }}</td>
             {% endif %}
             </tr>
@@ -166,7 +206,7 @@
         </table>
         <br>
     {% endfor %}
-    <input class="btn btn-default" type="submit" value="{% trans "Save" %}">
+        <input class="btn btn-default" type="submit" value="{% trans "Save" %}">
     </form>
     </div>
   </div>

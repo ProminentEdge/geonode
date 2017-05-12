@@ -18,7 +18,9 @@ class SensorServer(models.Model):
 
 class Sensor(ResourceBase):
     server = models.ForeignKey(SensorServer)
+    config_name = models.CharField(max_length=64, unique=True)
     name = models.CharField(max_length=64)
+    procedure_id = models.CharField(max_length=64)
     offering_id = models.CharField(max_length=64)
     description = models.CharField(max_length=256)
     start_time = models.CharField(max_length=32)
@@ -60,7 +62,7 @@ def pre_save_sensor(instance, sender, **kwargs):
     if instance.abstract == '' or instance.abstract is None:
         instance.abstract = instance.description
     if instance.title == '' or instance.title is None:
-        instance.title = instance.name
+        instance.title = instance.config_name
     if instance.thumbnail_url == '' or instance.thumbnail_url is None:
         instance.thumbnail_url = instance.selected_observable_props
 
