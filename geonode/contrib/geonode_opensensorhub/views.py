@@ -192,6 +192,8 @@ def sensor_detail(request, sensor_id, template='sensor_detail.html'):
             return HttpResponse("Sensor does not exist");
             pass
 
+        errors = []
+
         # TODO
         # Update count for popularity ranking,
         # but do not includes admins or resource owners
@@ -218,6 +220,15 @@ def sensor_detail(request, sensor_id, template='sensor_detail.html'):
             #"metadata": metadata,
             "is_layer": False,
         }
+
+        if "delete" in request.path:
+            if request.user == sensor.owner or request.user.is_superuser:
+                sensor.delete()
+                return HttpResponseRedirect(reverse('sensors_browse'))
+            else:
+                errors.append('You do not have permission to delete the sensor')
+
+        req_context['errors'] = errors
 
         # TODO
         # update context data depending on user perms

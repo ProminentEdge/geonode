@@ -77,10 +77,35 @@
         {% if GEONODE_SECURITY_ENABLED %}
             <dd>
                 <br>
-                <input id="save-btn" class="btn btn-primary" type="submit" value="Save Changes"/>
-                <input class="btn btn-default" type="button" value="Refresh"/>
+                <input id="save-btn" class="btn btn-primary" type="submit" value="{% trans "Save Changes" %}"/>
+                <input class="btn btn-default" type="button" value="{% trans "Refresh" %}"/>
+                <button class="btn btn-default" type ="button" data-toggle="modal" data-target="#delete-sensor-modal">{% trans "Delete Sensor" %}</button>
             </dd>
         {% endif %}
     </dl>
+        <div class="modal fade" id="delete-sensor-modal" tabindex="1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+          <div class="modal-dialog">
+            <div class="modal-content">
+              <div class="modal-header">
+                <button type="button" class="close" data-dismiss="modal" aria-hidden="true">&times;</button>
+                <h4 class="modal-title" id="sensorModalLabel">{% trans "Delete Sensor Configuration" %}</h4>
+              </div>
+              <div class="modal-body">
+                <div style="margin-bottom:20px">
+                     <h5 class="modal-title" id="myModalLabel">
+                    Confirm deletion of {{ resource.config_name }}?
+                     </h5>
+                </div>
+              </div>
+                <form method="post" id="delete-form" action="#delete">
+                    {% csrf_token %}
+                  <div class="modal-footer">
+                    <a class="btn btn-primary" rel="self" href="{{ resource.id }}/delete" title="OK">{% trans "OK" %}</a>
+                    <button type="button" class="btn btn-default" data-dismiss="modal">{% trans "Close" %}</button>
+                  </div>
+                </form>
+            </div>
+          </div>
+        </div>
     </form>
 </article>

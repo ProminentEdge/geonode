@@ -8,6 +8,7 @@ from django.db.models import signals
 from geonode.base.models import ResourceBase, ResourceBaseManager, resourcebase_post_save
 from geonode.maps.models import Map
 from geonode.people.utils import get_valid_user
+from geonode.security.models import remove_object_permissions
 
 logger = logging.getLogger("geonode.contrib.geonode_opensensorhub.models")
 
@@ -77,9 +78,26 @@ def pre_save_sensor(instance, sender, **kwargs):
         # Set a sensible default for the typename
      #   instance.typename = 'OSH:%s' % instance.name
 
+def pre_delete_sensor(instance, sender, **kwargs):
+    """
+    Remove any map sensor associations with this sensor
+    """
+    mapsensors =[]
+    try:
+        mapsensors = MapSensor.objects.get(sensor=instance)
+    except MapSensor.DoesNotExist:
+        print 'This sensor is not used by any maps'
+
+    for ms in mapsensors:
+        ms.delete()
+
+    # Delete object permissions
+    remove_object_permissions(instance)
+
 
 signals.pre_save.connect(pre_save_sensor, sender=Sensor)
 signals.post_save.connect(resourcebase_post_save, sender=Sensor)
+signals.pre_delete.connect(pre_delete_sensor, sender=Sensor)
 
 #This class/table just stores a registery of sensors and which maps they belong to
 class MapSensor(models.Model):

@@ -32,6 +32,7 @@ osh_urlpatterns = patterns(
     url(r'^$', TemplateView.as_view(template_name='sensors_list.html'), name='sensors_browse'),
     url(r'^add$', 'sensors_add', name='sensors_add'),
     url(r'^(?P<sensor_id>[^/]*)$', 'sensor_detail', name="sensor_detail"),
+    url(r'^(?P<sensor_id>[^/]*)/delete', 'sensor_detail', name="sensor_detail"),
     #url(r'^add/connect$', 'sensors_add_connect', name='sensors_add_connect'),
 )
 
