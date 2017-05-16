@@ -45,9 +45,10 @@ from geonode.base.models import HierarchicalKeyword
 
 from .authorization import GeoNodeAuthorization
 
-from .api import TagResource, RegionResource, ProfileResource, \
-    TopicCategoryResource, \
-    FILTER_TYPES
+from .api import TagResource, RegionResource, OwnersResource
+from .api import ThesaurusKeywordResource
+from .api import TopicCategoryResource
+from .api import FILTER_TYPES
 
 if settings.HAYSTACK_SEARCH:
     from haystack.query import SearchQuerySet  # noqa
@@ -65,6 +66,7 @@ class CommonMetaApi:
     allowed_methods = ['get']
     filtering = {'title': ALL,
                  'keywords': ALL_WITH_RELATIONS,
+                 'tkeywords': ALL_WITH_RELATIONS,
                  'regions': ALL_WITH_RELATIONS,
                  'category': ALL_WITH_RELATIONS,
                  'owner': ALL_WITH_RELATIONS,
@@ -82,7 +84,27 @@ class CommonModelApi(ModelResource):
         'category',
         null=True,
         full=True)
-    owner = fields.ToOneField(ProfileResource, 'owner', full=True)
+    owner = fields.ToOneField(OwnersResource, 'owner', full=True)
+    tkeywords = fields.ToManyField(ThesaurusKeywordResource, 'tkeywords', null=True)
+    VALUES = [
+        # fields in the db
+        'id',
+        'uuid',
+        'title',
+        'date',
+        'abstract',
+        'csw_wkt_geometry',
+        'csw_type',
+        'owner__username',
+        'share_count',
+        'popular_count',
+        'srid',
+        'category__gn_description',
+        'supplemental_information',
+        'thumbnail_url',
+        'detail_url',
+        'rating',
+    ]
 
     def build_filters(self, filters=None):
         if filters is None:
@@ -410,14 +432,15 @@ class CommonModelApi(ModelResource):
             objects = []
 
         object_list = {
-           "meta": {"limit": 100,  # noqa
-                    "next": next_page,
-                    "offset": int(getattr(request.GET, 'offset', 0)),
-                    "previous": previous_page,
-                    "total_count": total_count,
-                    "facets": facets,
-                    },
-            'objects': map(lambda x: self.get_haystack_api_fields(x), objects),
+           "meta": {
+                "limit": settings.API_LIMIT_PER_PAGE,
+                "next": next_page,
+                "offset": int(getattr(request.GET, 'offset', 0)),
+                "previous": previous_page,
+                "total_count": total_count,
+                "facets": facets,
+            },
+           "objects": map(lambda x: self.get_haystack_api_fields(x), objects),
         }
         self.log_throttled_access(request)
         return self.create_response(request, object_list)
@@ -459,6 +482,12 @@ class CommonModelApi(ModelResource):
 
         return self.create_response(request, to_be_serialized, response_objects=objects)
 
+    def format_objects(self, objects):
+        """
+        Format the objects for output in a response.
+        """
+        return objects.values(*self.VALUES)
+
     def create_response(
             self,
             request,
@@ -471,27 +500,9 @@ class CommonModelApi(ModelResource):
 
         Mostly a useful shortcut/hook.
         """
-        VALUES = [
-            # fields in the db
-            'id',
-            'uuid',
-            'title',
-            'date',
-            'abstract',
-            'csw_wkt_geometry',
-            'csw_type',
-            'owner__username',
-            'share_count',
-            'popular_count',
-            'srid',
-            'category__gn_description',
-            'supplemental_information',
-            'thumbnail_url',
-            'detail_url',
-            'rating',
-        ]
 
         # If an user does not have at least view permissions, he won't be able to see the resource at all.
+        filtered_objects_ids = None
         if response_objects:
             filtered_objects_ids = [item.id for item in response_objects if
                                     request.user.has_perm('view_resourcebase', item.get_self_resource())]
@@ -501,9 +512,10 @@ class CommonModelApi(ModelResource):
                 data['objects'],
                 list):
             if filtered_objects_ids:
-                data['objects'] = [x for x in list(data['objects'].values(*VALUES)) if x['id'] in filtered_objects_ids]
+                data['objects'] = [x for x in list(self.format_objects(data['objects']))
+                                   if x['id'] in filtered_objects_ids]
             else:
-                data['objects'] = list(data['objects'].values(*VALUES))
+                data['objects'] = list(self.format_objects(data['objects']))
 
         desired_format = self.determine_format(request)
         serialized = self.serialize(request, data, desired_format)

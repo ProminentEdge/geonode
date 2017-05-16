@@ -57,6 +57,7 @@ import shutil
 import os.path
 import logging
 import uuid
+import zipfile
 
 logger = logging.getLogger(__name__)
 
@@ -605,36 +606,42 @@ def final_step(upload_session, user):
         sld = f.read()
         f.close()
     else:
-        sld = get_sld_for(publishing)
+        sld = get_sld_for(cat, publishing)
 
     style = None
-    print " **************************************** "
     if sld is not None:
         try:
             cat.create_style(name, sld)
-            style = cat.get_style(name)
         except geoserver.catalog.ConflictingDataError as e:
             msg = 'There was already a style named %s in GeoServer, try using another name: "%s"' % (
                 name, str(e))
             try:
                 cat.create_style(name + '_layer', sld)
-                style = cat.get_style(name + '_layer')
             except geoserver.catalog.ConflictingDataError as e:
                 msg = 'There was already a style named %s in GeoServer, cannot overwrite: "%s"' % (
                     name, str(e))
                 logger.error(msg)
                 e.args = (msg,)
 
+        if style is None:
+            try:
+                style = cat.get_style(name)
+            except:
+                logger.warn('Could not retreive the Layer default Style name')
                 # what are we doing with this var?
                 msg = 'No style could be created for the layer, falling back to POINT default one'
-                style = cat.get_style('point')
-                logger.warn(msg)
-                e.args = (msg,)
+                try:
+                    style = cat.get_style(name + '_layer')
+                except:
+                    style = cat.get_style('point')
+                    logger.warn(msg)
+                    e.args = (msg,)
 
-        # FIXME: Should we use the fully qualified typename?
-        publishing.default_style = style
-        _log('default style set to %s', name)
-        cat.save(publishing)
+        if style:
+            # FIXME: Should we use the fully qualified typename?
+            publishing.default_style = style
+            _log('default style set to %s', name)
+            cat.save(publishing)
 
     _log('Creating Django record for [%s]', name)
     target = task.target
@@ -736,6 +743,13 @@ def final_step(upload_session, user):
     if xml_file:
         saved_layer.metadata_uploaded = True
         # get model properties from XML
+        # If it's contained within a zip, need to extract it
+        if upload_session.base_file.archive:
+            archive = upload_session.base_file.archive
+            zf = zipfile.ZipFile(archive, 'r')
+            zf.extract(xml_file[0], os.path.dirname(archive))
+            # Assign the absolute path to this file
+            xml_file[0] = os.path.dirname(archive) + '/' + xml_file[0]
         identifier, vals, regions, keywords = set_metadata(open(xml_file[0]).read())
 
         regions_resolved, regions_unresolved = resolve_regions(regions)
@@ -869,7 +883,6 @@ max\ connections={db_conn_max}"""
 
     if not append_to_mosaic_opts:
 
-        import zipfile
         z = zipfile.ZipFile(dirname + '/' + head + '.zip', "w")
 
         z.write(dst_file, arcname=head + "_" + mosaic_time_value + tail)

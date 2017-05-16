@@ -29,9 +29,11 @@ except ImportError:
 from django.contrib.contenttypes.models import ContentType
 from agon_ratings.models import OverallRating
 from django.contrib.auth import get_user_model
+from django.conf import settings
 
 from geonode.layers.models import Layer
 from geonode.maps.models import Map
+from geonode.maps.utils import fix_baselayers
 from geonode.utils import default_map_config
 from geonode.base.populate_test_data import create_models
 from geonode.maps.tests_populate_maplayers import create_maplayers
@@ -211,7 +213,7 @@ community."
         """ Make some assertions about the data structure produced for serialization
             to a JSON map configuration"""
         map_obj = Map.objects.get(id=1)
-        cfg = map_obj.viewer_json(None)
+        cfg = map_obj.viewer_json(None, None)
         self.assertEquals(
             cfg['about']['abstract'],
             'GeoNode default map abstract')
@@ -449,7 +451,7 @@ community."
 
         # Config equals to that of the map whose id is given
         map_obj = Map.objects.get(id=map_id)
-        config_map = map_obj.viewer_json(None)
+        config_map = map_obj.viewer_json(None, None)
         response_config_dict = json.loads(response.context['config'])
         self.assertEquals(
             config_map['about']['abstract'],
@@ -462,7 +464,7 @@ community."
         response = self.client.get(url_no_id)
         self.assertEquals(response.status_code, 200)
         # Config equals to that of the default map
-        config_default = default_map_config()[0]
+        config_default = default_map_config(None)[0]
         response_config_dict = json.loads(response.context['config'])
         self.assertEquals(
             config_default['about']['abstract'],
@@ -509,7 +511,7 @@ community."
 
         # Config equals to that of the map whose id is given
         map_obj = Map.objects.get(id=map_id)
-        config_map = map_obj.viewer_json(None)
+        config_map = map_obj.viewer_json(None, None)
         response_config_dict = json.loads(response.context['config'])
         self.assertEquals(
             config_map['about']['abstract'],
@@ -536,7 +538,7 @@ community."
         response = self.client.get(url, {'copy': map_id})
         self.assertEquals(response.status_code, 200)
         map_obj = Map.objects.get(id=map_id)
-        config_map = map_obj.viewer_json(None)
+        config_map = map_obj.viewer_json(None, None)
         response_config_dict = json.loads(response.content)
         self.assertEquals(
             config_map['map']['layers'],
@@ -545,7 +547,7 @@ community."
         # Test GET method no COPY and no layer in params
         response = self.client.get(url)
         self.assertEquals(response.status_code, 200)
-        config_default = default_map_config()[0]
+        config_default = default_map_config(None)[0]
         response_config_dict = json.loads(response.content)
         self.assertEquals(
             config_default['about']['abstract'],
@@ -613,3 +615,19 @@ community."
         # Check there are no ratings matching the removed map
         rating = OverallRating.objects.filter(category=1, object_id=map_id)
         self.assertEquals(rating.count(), 0)
+
+    def test_fix_baselayers(self):
+        """Test fix_baselayers function, used by the fix_baselayers command
+        """
+        map_id = 1
+        map_obj = Map.objects.get(id=map_id)
+
+        # number of base layers (we remove the local geoserver entry from the total)
+        n_baselayers = len(settings.MAP_BASELAYERS) - 1
+
+        # number of local layers
+        n_locallayers = map_obj.layer_set.filter(local=True).count()
+
+        fix_baselayers(map_id)
+
+        self.assertEquals(map_obj.layer_set.all().count(), n_baselayers + n_locallayers)

@@ -20,18 +20,31 @@
 
 import autocomplete_light
 
-from models import ResourceBase, Region, HierarchicalKeyword
+from guardian.shortcuts import get_objects_for_user
+from django.conf import settings
+from django.db.models import Q
+
+from models import ResourceBase, Region, HierarchicalKeyword, ThesaurusKeywordLabel
 
 
 class ResourceBaseAutocomplete(autocomplete_light.AutocompleteModelTemplate):
     choice_template = 'autocomplete_response.html'
+    model = ResourceBase
+
+    def choices_for_request(self):
+        permitted = get_objects_for_user(
+            self.request.user,
+            'base.view_resourcebase')
+        self.choices = self.choices.filter(id__in=permitted)
+
+        return super(ResourceBaseAutocomplete, self).choices_for_request()
+
 
 autocomplete_light.register(Region,
                             search_fields=['name'],
                             autocomplete_js_attributes={'placeholder': 'Region/Country ..', },)
 
-autocomplete_light.register(ResourceBase,
-                            ResourceBaseAutocomplete,
+autocomplete_light.register(ResourceBaseAutocomplete,
                             search_fields=['title'],
                             order_by=['title'],
                             limit_choices=100,
@@ -41,3 +54,30 @@ autocomplete_light.register(HierarchicalKeyword,
                             search_fields=['name', 'slug'],
                             autocomplete_js_attributes={'placeholder':
                                                         'A space or comma-separated list of keywords', },)
+
+
+class ThesaurusKeywordLabelAutocomplete(autocomplete_light.AutocompleteModelBase):
+
+    search_fields = ['label']
+
+    model = ThesaurusKeywordLabel
+
+    def choices_for_request(self):
+
+        lang = 'en'  # TODO: use user's language
+        self.choices = self.choices.filter(lang=lang)
+        return super(ThesaurusKeywordLabelAutocomplete, self).choices_for_request()
+
+
+for thesaurus in settings.THESAURI:
+
+    tname = thesaurus['name']
+    ac_name = 'thesaurus_' + tname
+
+    print('Registering thesaurus autocomplete for {}: {}'.format(tname, ac_name))
+
+    autocomplete_light.register(
+        ThesaurusKeywordLabelAutocomplete,
+        name=ac_name,
+        choices=ThesaurusKeywordLabel.objects.filter(Q(keyword__thesaurus__identifier=tname))
+    )

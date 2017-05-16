@@ -66,14 +66,6 @@ Place the following content inside the file:::
             IndexOptions FancyIndexing
         </Directory>
 
-        <Directory "/home/geonode/geonode/geonode/uploaded/layers/">
-            Order allow,deny
-            Options Indexes FollowSymLinks
-            Allow from all
-            Require all granted
-            IndexOptions FancyIndexing
-        </Directory>
-
         <Proxy *>
             Order allow,deny
             Allow from all
@@ -93,7 +85,7 @@ for GeoServer.
     In the case that GeoServer is running on a separate machine change the `ProxyPass`
     and `ProxyPassReverse` accordingly
 
-Now load apache `proxy` module::
+Now load the Apache `proxy` module::
 
     sudo a2enmod proxy_http
 
@@ -116,8 +108,8 @@ them:::
     sudo chown -R geonode /home/geonode/geonode/
     sudo chown geonode:www-data /home/geonode/geonode/geonode/static/
     sudo chown geonode:www-data /home/geonode/geonode/geonode/uploaded/
-    chmod -Rf 777 /home/geonode/geonode/geonode/uploaded/thumbs
-    chmod -Rf 777 /home/geonode/geonode/geonode/uploaded/layers
+    sudo chmod -Rf 777 /home/geonode/geonode/geonode/uploaded/thumbs
+    sudo chmod -Rf 777 /home/geonode/geonode/geonode/uploaded/layers
     sudo chown www-data:www-data /home/geonode/geonode/geonode/static_root/
 
 Copy GeoNode data to be served by Apache. You will be prompted for confirmation::

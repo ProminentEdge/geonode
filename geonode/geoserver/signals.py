@@ -32,10 +32,10 @@ from geonode.geoserver.ows import wcs_links, wfs_links, wms_links
 from geonode.geoserver.helpers import cascading_delete, set_attributes_from_geoserver
 from geonode.geoserver.helpers import set_styles, gs_catalog
 from geonode.geoserver.helpers import ogc_server_settings
-from geonode.geoserver.helpers import geoserver_upload, http_client
+from geonode.geoserver.helpers import geoserver_upload
+from geonode.geoserver.helpers import create_gs_thumbnail
 from geonode.base.models import ResourceBase
 from geonode.base.models import Link
-from geonode.layers.utils import create_thumbnail
 from geonode.people.models import Profile
 
 from geoserver.layer import Layer as GsLayer
@@ -67,8 +67,9 @@ def geoserver_pre_save(instance, sender, **kwargs):
         * Point of Contact name and url
     """
 
-    # Don't run this signal if is a Layer from a remote service
-    if getattr(instance, "service", None) is not None:
+    # Don't run this signal handler if it is a tile layer or a remote store (Service)
+    #    Currently only gpkg files containing tiles will have this type & will be served via MapProxy.
+    if hasattr(instance, 'storeType') and getattr(instance, 'storeType') in ['tileStore', 'remoteStore']:
         return
 
     gs_resource = None
@@ -173,17 +174,16 @@ def geoserver_post_save(instance, sender, **kwargs):
        The way keywords are implemented requires the layer
        to be saved to the database before accessing them.
     """
+    # Don't run this signal handler if it is a tile layer
+    #    Currently only gpkg files containing tiles will have this type & will be served via MapProxy.
+    if hasattr(instance, 'storeType') and getattr(instance, 'storeType') in ['tileStore', 'remoteStore']:
+        return
 
     if type(instance) is ResourceBase:
         if hasattr(instance, 'layer'):
             instance = instance.layer
         else:
             return
-
-    if instance.storeType == "remoteStore":
-        # Save layer attributes
-        set_attributes_from_geoserver(instance)
-        return
 
     if not getattr(instance, 'gs_resource', None):
         try:
@@ -362,27 +362,7 @@ def geoserver_post_save(instance, sender, **kwargs):
                                )
                                )
 
-    params = {
-        'layers': instance.typename.encode('utf-8'),
-        'format': 'image/png8',
-        'width': 200,
-        'height': 150,
-        'TIME': '-99999999999-01-01T00:00:00.0Z/99999999999-01-01T00:00:00.0Z'
-
-    }
-
-    # Avoid using urllib.urlencode here because it breaks the url.
-    # commas and slashes in values get encoded and then cause trouble
-    # with the WMS parser.
-    p = "&".join("%s=%s" % item for item in params.items())
-
-    thumbnail_remote_url = ogc_server_settings.PUBLIC_LOCATION + \
-        "wms/reflect?" + p
-
-    thumbnail_create_url = ogc_server_settings.LOCATION + \
-        "wms/reflect?" + p
-
-    create_thumbnail(instance, thumbnail_remote_url, thumbnail_create_url, ogc_client=http_client)
+    create_gs_thumbnail(instance, overwrite=True)
 
     legend_url = ogc_server_settings.PUBLIC_LOCATION + \
         'wms?request=GetLegendGraphic&format=image/png&WIDTH=20&HEIGHT=20&LAYER=' + \
@@ -507,34 +487,4 @@ def geoserver_pre_save_maplayer(instance, sender, **kwargs):
 
 def geoserver_post_save_map(instance, sender, **kwargs):
     instance.set_missing_info()
-    local_layers = []
-    for layer in instance.layers:
-        if layer.local:
-            local_layers.append(layer.name)
-
-    # If the map does not have any local layers, do not create the thumbnail.
-    if len(local_layers) > 0:
-        params = {
-            'layers': ",".join(local_layers).encode('utf-8'),
-            'format': 'image/png8',
-            'width': 200,
-            'height': 150,
-        }
-
-        # Add the bbox param only if the bbox is different to [None, None,
-        # None, None]
-        if None not in instance.bbox:
-            params['bbox'] = instance.bbox_string
-
-        # Avoid using urllib.urlencode here because it breaks the url.
-        # commas and slashes in values get encoded and then cause trouble
-        # with the WMS parser.
-        p = "&".join("%s=%s" % item for item in params.items())
-
-        thumbnail_remote_url = ogc_server_settings.PUBLIC_LOCATION + \
-            "wms/reflect?" + p
-
-        thumbnail_create_url = ogc_server_settings.LOCATION + \
-            "wms/reflect?" + p
-
-        create_thumbnail(instance, thumbnail_remote_url, thumbnail_create_url, check_bbox=False)
+    create_gs_thumbnail(instance, overwrite=True)

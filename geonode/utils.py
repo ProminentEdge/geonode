@@ -25,6 +25,10 @@ import logging
 import math
 import os
 import re
+import uuid
+
+from osgeo import ogr
+from slugify import Slugify
 import string
 
 from django.conf import settings
@@ -34,10 +38,13 @@ from django.http import Http404
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404
 from django.utils.translation import ugettext_lazy as _
+from django.db import models
 import httplib2
-from osgeo import ogr
-from slugify import Slugify
+import urlparse
+import urllib
 
+import gc
+import weakref
 
 try:
     import json
@@ -58,6 +65,20 @@ SIGN_CHARACTER = '$'
 http_client = httplib2.Http()
 
 custom_slugify = Slugify(separator='_')
+
+signalnames = [
+    'class_prepared',
+    'm2m_changed',
+    'post_delete',
+    'post_init',
+    'post_save',
+    'post_syncdb',
+    'pre_delete',
+    'pre_init',
+    'pre_save']
+signals_store = {}
+
+id_none = id(None)
 
 logger = logging.getLogger("geonode.utils")
 
@@ -200,7 +221,7 @@ def layer_from_viewer_config(model, layer, source, ordering):
 
 class GXPMapBase(object):
 
-    def viewer_json(self, user, *added_layers):
+    def viewer_json(self, user, access_token, *added_layers):
         """
         Convert this map to a nested dictionary structure matching the JSON
         configuration for GXP Viewers.
@@ -239,7 +260,7 @@ class GXPMapBase(object):
                     results.append(x)
             return results
 
-        configs = [l.source_config() for l in layers]
+        configs = [l.source_config(access_token) for l in layers]
 
         i = 0
         for source in uniqify(configs):
@@ -256,7 +277,7 @@ class GXPMapBase(object):
 
         def layer_config(l, user=None):
             cfg = l.layer_config(user=user)
-            src_cfg = l.source_config()
+            src_cfg = l.source_config(access_token)
             source = source_lookup(src_cfg)
             if source:
                 cfg["source"] = source
@@ -309,6 +330,7 @@ class GXPMapBase(object):
                 'title': self.title,
                 'abstract': self.abstract
             },
+            'aboutUrl': '../about',
             'defaultSourceType': "gxp_wmscsource",
             'sources': sources,
             'map': {
@@ -323,7 +345,7 @@ class GXPMapBase(object):
             # Mark the last added layer as selected - important for data page
             config["map"]["layers"][len(layers) - 1]["selected"] = True
         else:
-            (def_map_config, def_map_layers) = default_map_config()
+            (def_map_config, def_map_layers) = default_map_config(None)
             config = def_map_config
             layers = def_map_layers
 
@@ -358,7 +380,7 @@ class GXPMap(GXPMapBase):
 
 class GXPLayerBase(object):
 
-    def source_config(self):
+    def source_config(self, access_token):
         """
         Generate a dict that can be serialized to a GXP layer source
         configuration suitable for loading this layer.
@@ -369,7 +391,29 @@ class GXPLayerBase(object):
             cfg = dict(ptype="gxp_wmscsource", restUrl="/gs/rest")
 
         if self.ows_url:
-            cfg["url"] = self.ows_url
+            '''
+            This limits the access token we add to only the OGC servers decalred in OGC_SERVER.
+            Will also override any access_token in the request and replace it with an existing one.
+            '''
+            urls = []
+            for name, server in settings.OGC_SERVER.iteritems():
+                url = urlparse.urlsplit(server['PUBLIC_LOCATION'])
+                urls.append(url.netloc)
+
+            my_url = urlparse.urlsplit(self.ows_url)
+
+            if access_token and my_url.netloc in urls:
+                request_params = urlparse.parse_qs(my_url.query)
+                if 'access_token' in request_params:
+                    del request_params['access_token']
+                request_params['access_token'] = [access_token]
+                encoded_params = urllib.urlencode(request_params, doseq=True)
+
+                parsed_url = urlparse.SplitResult(my_url.scheme, my_url.netloc, my_url.path,
+                                                  encoded_params, my_url.fragment)
+                cfg["url"] = parsed_url.geturl()
+            else:
+                cfg["url"] = self.ows_url
 
         return cfg
 
@@ -428,7 +472,7 @@ class GXPLayer(GXPLayerBase):
             setattr(self, k, kw[k])
 
 
-def default_map_config():
+def default_map_config(request):
     if getattr(settings, 'DEFAULT_MAP_CRS', 'EPSG:900913') == "EPSG:4326":
         _DEFAULT_MAP_CENTER = inverse_mercator(settings.DEFAULT_MAP_CENTER)
     else:
@@ -455,7 +499,17 @@ def default_map_config():
         _baselayer(
             lyr, idx) for idx, lyr in enumerate(
             settings.MAP_BASELAYERS)]
-    DEFAULT_MAP_CONFIG = _default_map.viewer_json(None, *DEFAULT_BASE_LAYERS)
+    user = None
+    access_token = None
+    if request:
+        user = request.user
+        if 'access_token' in request.session:
+            access_token = request.session['access_token']
+        else:
+            u = uuid.uuid1()
+            access_token = u.hex
+
+    DEFAULT_MAP_CONFIG = _default_map.viewer_json(user, access_token, *DEFAULT_BASE_LAYERS)
 
     return DEFAULT_MAP_CONFIG, DEFAULT_BASE_LAYERS
 
@@ -780,3 +834,85 @@ def set_attributes(layer, attribute_map, overwrite=False, attribute_stats=None):
                         layer.name.encode('utf-8'))
     else:
         logger.debug("No attributes found")
+
+
+def id_to_obj(id_):
+    if id_ == id_none:
+        return None
+
+    for obj in gc.get_objects():
+        if id(obj) == id_:
+            return obj
+            break
+    raise Exception("Not found")
+
+
+def printsignals():
+    for signalname in signalnames:
+        logger.debug("SIGNALNAME: %s" % signalname)
+        signaltype = getattr(models.signals, signalname)
+        signals = signaltype.receivers[:]
+        for signal in signals:
+            logger.info(signal)
+
+
+def designals():
+    global signals_store
+
+    for signalname in signalnames:
+        signaltype = getattr(models.signals, signalname)
+        logger.debug("RETRIEVE: %s: %d" % (signalname, len(signaltype.receivers)))
+        signals_store[signalname] = []
+        signals = signaltype.receivers[:]
+        for signal in signals:
+            uid = receiv_call = None
+            sender_ista = sender_call = None
+            # first tuple element:
+            # - case (id(instance), id(method))
+            if not isinstance(signal[0], tuple):
+                raise "Malformed signal"
+
+            lookup = signal[0]
+
+            if isinstance(lookup[0], tuple):
+                # receiv_ista = id_to_obj(lookup[0][0])
+                receiv_call = id_to_obj(lookup[0][1])
+            else:
+                # - case id(function) or uid
+                try:
+                    receiv_call = id_to_obj(lookup[0])
+                except:
+                    uid = lookup[0]
+
+            if isinstance(lookup[1], tuple):
+                sender_call = id_to_obj(lookup[1][0])
+                sender_ista = id_to_obj(lookup[1][1])
+            else:
+                sender_ista = id_to_obj(lookup[1])
+
+            # second tuple element
+            if (isinstance(signal[1], weakref.ReferenceType)):
+                is_weak = True
+                receiv_call = signal[1]()
+            else:
+                is_weak = False
+                receiv_call = signal[1]
+
+            signals_store[signalname].append({
+                'uid': uid, 'is_weak': is_weak,
+                'sender_ista': sender_ista, 'sender_call': sender_call,
+                'receiv_call': receiv_call,
+                })
+
+            signaltype.disconnect(receiver=receiv_call, sender=sender_ista, weak=is_weak, dispatch_uid=uid)
+
+
+def resignals():
+    global signals_store
+
+    for signalname in signalnames:
+        signals = signals_store[signalname]
+        signaltype = getattr(models.signals, signalname)
+        for signal in signals:
+            signaltype.connect(signal['receiv_call'], sender=signal['sender_ista'],
+                               weak=signal['is_weak'], dispatch_uid=signal['uid'])

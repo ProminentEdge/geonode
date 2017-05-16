@@ -23,9 +23,10 @@ import sys
 import logging
 import shutil
 import traceback
-from guardian.shortcuts import get_perms
+import uuid
 import decimal
 
+from guardian.shortcuts import get_perms
 from django.contrib import messages
 from django.contrib.auth.decorators import login_required
 from django.core.urlresolvers import reverse
@@ -109,16 +110,14 @@ def _resolve_layer(request, typename, permission='base.view_resourcebase',
         service = Service.objects.filter(name=service_typename[0])
         return resolve_object(request,
                               Layer,
-                              {'service': service[0],
-                               'typename': service_typename[1] if service[0].method != "C" else typename},
+                              {'typename': service_typename[1] if service[0].method != "C" else typename},
                               permission=permission,
                               permission_msg=msg,
                               **kwargs)
     else:
         return resolve_object(request,
                               Layer,
-                              {'typename': typename,
-                               'service': None},
+                              {'typename': typename},
                               permission=permission,
                               permission_msg=msg,
                               **kwargs)
@@ -233,6 +232,8 @@ def layer_detail(request, layername, template='layers/layer_detail.html'):
         else llbbox_to_mercator([float(coord) for coord in bbox])
     config["title"] = layer.title
     config["queryable"] = True
+    if layer.default_style:
+        config["styles"] = layer.default_style.name
 
     if layer.storeType == "remoteStore":
         service = layer.service
@@ -262,7 +263,7 @@ def layer_detail(request, layername, template='layers/layer_detail.html'):
     map_obj = GXPMap(projection=getattr(settings, 'DEFAULT_MAP_CRS', 'EPSG:900913'))
 
     NON_WMS_BASE_LAYERS = [
-        la for la in default_map_config()[1] if la.ows_url is None]
+        la for la in default_map_config(request)[1] if la.ows_url is None]
 
     metadata = layer.link_set.metadata().filter(
         name__in=settings.DOWNLOAD_FORMATS_METADATA)
@@ -305,8 +306,14 @@ def layer_detail(request, layername, template='layers/layer_detail.html'):
         "filter": filter,
     }
 
+    if 'access_token' in request.session:
+        access_token = request.session['access_token']
+    else:
+        u = uuid.uuid1()
+        access_token = u.hex
+
     context_dict["viewer"] = json.dumps(
-        map_obj.viewer_json(request.user, * (NON_WMS_BASE_LAYERS + [maplayer])))
+        map_obj.viewer_json(request.user, access_token, * (NON_WMS_BASE_LAYERS + [maplayer])))
     context_dict["preview"] = getattr(
         settings,
         'LAYER_PREVIEW_LIBRARY',
@@ -326,6 +333,12 @@ def layer_detail(request, layername, template='layers/layer_detail.html'):
                   item.url and 'wms' in item.url or 'gwc' in item.url]
     links_download = [item for idx, item in enumerate(links) if
                       item.url and 'wms' not in item.url and 'gwc' not in item.url]
+    for item in links_view:
+        if item.url and access_token:
+            item.url = "%s&access_token=%s" % (item.url, access_token)
+    for item in links_download:
+        if item.url and access_token:
+            item.url = "%s&access_token=%s" % (item.url, access_token)
 
     if request.user.has_perm('view_resourcebase', layer.get_self_resource()):
         context_dict["links"] = links_view
@@ -342,6 +355,32 @@ def layer_detail(request, layername, template='layers/layer_detail.html'):
         context_dict["social_links"] = build_social_links(request, layer)
 
     return render_to_response(template, RequestContext(request, context_dict))
+
+
+def layer_feature_catalogue(request, layername, template='../../catalogue/templates/catalogue/feature_catalogue.xml'):
+    layer = _resolve_layer(request, layername)
+    if layer.storeType != 'dataStore':
+        out = {
+            'success': False,
+            'errors': 'layer is not a feature type'
+        }
+        return HttpResponse(json.dumps(out), content_type='application/json', status=400)
+
+    attributes = []
+
+    for attrset in layer.attribute_set.all():
+        attr = {
+            'name': attrset.attribute,
+            'type': attrset.attribute_type
+        }
+        attributes.append(attr)
+
+    context_dict = {
+        'layer': layer,
+        'attributes': attributes,
+        'metadata': settings.PYCSW['CONFIGURATION']['metadata:main']
+    }
+    return render_to_response(template, context_dict, content_type='application/xml')
 
 
 @login_required
@@ -710,6 +749,6 @@ def get_layer(request, layername):
 def layer_metadata_detail(request, layername, template='layers/layer_metadata_detail.html'):
     layer = _resolve_layer(request, layername, 'view_resourcebase', _PERMISSION_MSG_METADATA)
     return render_to_response(template, RequestContext(request, {
-        "layer": layer,
+        "resource": layer,
         'SITEURL': settings.SITEURL[:-1]
     }))

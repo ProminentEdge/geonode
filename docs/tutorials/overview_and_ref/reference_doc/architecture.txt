@@ -11,14 +11,14 @@ Architecture
    :alt: GeoNode Component Architecture
 *GeoNode Component Architecture*
 
-GeoNode core is based on DJango web framework with few more dependencies necessary for the communication with the geospatial servers (GeoServer, pyCSW)
+GeoNode core is based on Django web framework with few more dependencies necessary for the communication with the geospatial servers (GeoServer, pyCSW)
 
-On the left side you can see the list of *Entities* defined in GeoNode and managed by the DJango ORM framework. Those objects will be detailed in a future section.
+On the left side you can see the list of *Entities* defined in GeoNode and managed by the Django ORM framework. Those objects will be detailed in a future section.
 
 On the right side the list of *Services* available allowing GeoNode to communicate with the *social* world.
 
 The GeoNode catalog is strictly connected to the GeoServer one (see the bottom of the figure). The geospatial dataset and the OGC Services are implemented and managed by GeoServer.
-GeoNode acts as a broker for the geospatial layers, adding metdata information and tools that make easier the management, cataloging, mapping and searching of the datasets.
+GeoNode acts as a broker for the geospatial layers, adding metadata information and tools that make easier the management, cataloging, mapping and searching of the datasets.
 
 Thanks to the ORM framework and the auxiliary Python libraries, GeoNode is constantly aligned with the GeoServer catalog. An ad-hoc security module allows the two modules to strictly
 interact and share security and permissions rules.
@@ -28,10 +28,10 @@ In the advanced sections of this documentation we will go through GeoNode comman
 Django Architecture
 ===================
 
-GeoNode is based on `Django <www.djangoproject.com>`_ which is a high level Python web development framework that encourages rapid development and clean pragmatic design. 
-Django is based on the Model View Controller (`MVC <http://en.wikipedia.org/wiki/Model%E2%80%93view%E2%80%93controller>`_) architecture pattern, and as such, 
-GeoNode models layers, maps and other modules with Django’s `Model <https://docs.djangoproject.com/en/1.4/topics/db/models/>`_ module and and these models are used via 
-Django’s `ORM <http://en.wikipedia.org/wiki/Object-relational_mapping>`_ in views which contain the business logic of the GeoNode application and are used to drive 
+GeoNode is based on `Django <https://www.djangoproject.com/>`_ which is a high level Python web development framework that encourages rapid development and clean pragmatic design.
+Django is based on the Model View Controller (`MVC <https://en.wikipedia.org/wiki/Model%E2%80%93view%E2%80%93controller>`_) architecture pattern, and as such,
+GeoNode models layers, maps and other modules with Django’s `Model <https://docs.djangoproject.com/en/1.8/topics/db/models/>`_ module and these models are used via
+Django’s `ORM <https://en.wikipedia.org/wiki/Object-relational_mapping>`_ in views which contain the business logic of the GeoNode application and are used to drive
 HTML templates to display the web pages within the application.
 
 Django explained with model/view/controller (`MVC <http://reinout.vanrees.org/weblog/2011/12/13/django-mvc-explanation.html>`_)
@@ -56,7 +56,7 @@ MVP
 
     MVP tends to be a very natural pattern for achieving separated presentation in Web Forms.
     
-    **Two primary variations** (You can `find out more about both variants <http://www.codeplex.com/websf/Wiki/View.aspx?title=MVPDocumentation&referringTitle=bundles>`_.)
+    **Two primary variations** (You can `find out more about both variants <http://webclientguidance.codeplex.com/wikipage?title=MVPDocumentation&referringTitle=bundles>`_.)
     
     **Passive View:** The View is as dumb as possible and contains almost zero logic. The Presenter is a middle man that talks to the View and the Model. The View and Model are completely shielded from one another. The Model may raise events, but the Presenter subscribes to them for updating the View. In Passive View there is no direct data binding, instead the View exposes setter properties which the Presenter uses to set the data. All state is managed in the Presenter and not the View.
 
@@ -65,7 +65,7 @@ MVP
     
     **Supervising Controller:** The Presenter handles user gestures. The View binds to the Model directly through data binding. In this case it's the Presenter's job to pass off the Model to the View so that it can bind to it. The Presenter will also contain logic for gestures like pressing a button, navigation, etc.
 
-        * *Pro:* by leveraging databinding the amount of code is reduced.
+        * *Pro:* by leveraging data binding the amount of code is reduced.
         * *Con:* there's less testable surface (because of data binding), and there's less encapsulation in the View since it talks directly to the Model.
 
 MVC
@@ -97,7 +97,7 @@ Presentation Model
     The Presentation Model can expose commands which the view uses for invoking actions. 
     The advantage of this approach is that you can essentially remove the code-behind altogether as the PM completely encapsulates all of the behaviour for the view. 
     
-    This pattern is a very strong candidate for use in WPF applications and is also called `Model-View-ViewModel <http://msdn.microsoft.com/en-us/magazine/dd419663.aspx>`_.
+    This pattern is a very strong candidate for use in WPF applications and is also called `Model-View-ViewModel <https://msdn.microsoft.com/en-us/magazine/dd419663.aspx>`_.
 
 More: `http://reinout.vanrees.org/weblog/2011/12/13/django-mvc-explanation.html <http://reinout.vanrees.org/weblog/2011/12/13/django-mvc-explanation.html>`_
 
@@ -109,7 +109,7 @@ WSGI
     * This allows any WSGI compliant framework to be hosted in any WSGI compliant server.
     * For most GeoNode development, the details of this specification may be ignored.
     
-More: `http://en.wikipedia.org/wiki/Wsgi <http://en.wikipedia.org/wiki/Wsgi>`_
+More: `http://en.wikipedia.org/wiki/Wsgi <https://en.wikipedia.org/wiki/Wsgi>`_
 
 GeoNode and GeoServer
 =====================
@@ -152,11 +152,11 @@ Web Map Service (WMS)
 
 WFS
 ...
-    WFS provides provides an API to retrieve raw geospatial vector data directly.  WFS is suitable for direct query and access to geographic features.
+    WFS provides an API to retrieve raw geospatial vector data directly.  WFS is suitable for direct query and access to geographic features.
 
 WCS
 ...
-    WCS provides provides an API to retrieve raw geospatial raster data directly.  WCS is suitable for direct access to satellite imagery, DEMs, etc.
+    WCS provides an API to retrieve raw geospatial raster data directly.  WCS is suitable for direct access to satellite imagery, DEMs, etc.
 
 CSW
 ...
@@ -164,7 +164,7 @@ CSW
 
 WMTS
 ....
-    WMTS provides an API to retrive pre-rendered map tiles of geospatial data.
+    WMTS provides an API to retrieve pre-rendered map tiles of geospatial data.
 
 WMC
 ...
@@ -175,10 +175,10 @@ More: `http://geoserver.org <http://geoserver.org>`_
 GeoNode and PostgreSQL/PostGIS
 ==============================
 
-In production, GeoNode is configured to use PostgreSQL/PostGIS for it’s persistent store. In development and testing mode, often an embedded sqlite database is used. The latter is not suggested for production.
+In production, GeoNode is configured to use PostgreSQL/PostGIS for it’s persistent store. In development and testing mode, often an embedded SQLite database is used. The latter is not suggested for production.
 
     * The database stores configuration and application information. This includes users, layers, maps, etc.
-    * It is recommended that GeoNode be configured to use PostgresSQL/PostGIS for storing vector data as well. While serving layers directly from shapefile allows for adequate performance in many cases, storing features in the database allows for better performance especially when using complex style rules based on attributes.
+    * It is recommended that GeoNode be configured to use PostgreSQL/PostGIS for storing vector data as well. While serving layers directly from shapefile allows for adequate performance in many cases, storing features in the database allows for better performance especially when using complex style rules based on attributes.
 
 GeoNode and pycsw
 =================
@@ -201,26 +201,26 @@ Javascript in GeoNode
     GeoNode provides a number of facilities for interactivity in the web browser built on top of several high-quality JavaScript frameworks:
 
     * `Bootstrap <http://getbootstrap.com/>`_ for GeoNode's front-end user interface and common user interaction.
-    * `Bower <http://bower.io/>`_ for GeoNode's front-end package management.
-    * `ExtJS <http://extjs.com/>`_ for component-based UI construction and data access
+    * `Bower <https://bower.io/>`_ for GeoNode's front-end package management.
+    * `ExtJS <https://www.sencha.com/products/extjs/>`_ for component-based UI construction and data access
     * `OpenLayers <http://openlayers.org/>`_ for interactive mapping and other geospatial operations
     * `GeoExt <http://geoext.org/>`_ for integrating ExtJS with OpenLayers
     * `Grunt <http://gruntjs.com/>`_ for front-end task automation.
-    * `GXP <http://projects.opengeo.org/gxp>`_ for providing some higher-level application building facilities on top of GeoExt, as well
+    * `GXP <https://github.com/boundlessgeo/gxp>`_ for providing some higher-level application building facilities on top of GeoExt, as well
       as improving integration with GeoServer.
-    * `jQuery <http://jquery.com>`_ to abstract javascript manipulation, event handling, animation and Ajax.
+    * `jQuery <http://jquery.com>`_ to abstract Javascript manipulation, event handling, animation and Ajax.
 
     GeoNode uses application-specific modules to handle pages and services that are unique to GeoNode.  This framework includes:
 
     * A `GeoNode mixin <https://github.com/GeoNode/geonode/blob/master/geonode/static/geonode/js/extjs/GeoNode-mixin.js>`_  class
       that provides GeoExplorer with the methods needed to properly function in GeoNode.  The class
-      is responsible for checking permissions, retrieving and submitting the `CSRF token <https://docs.djangoproject.com/en/dev/ref/contrib/csrf/>`_,
+      is responsible for checking permissions, retrieving and submitting the `CSRF token <https://docs.djangoproject.com/en/1.8/ref/csrf/>`_,
       and user authentication.
 
     * A `search module <https://github.com/GeoNode/geonode/tree/master/geonode/static/geonode/js/search>`_ responsible for the GeoNode's site-wide search functionality.
     * An `upload and status module <https://github.com/GeoNode/geonode/tree/master/geonode/static/geonode/js/upload>`_ to support file uploads.
     * `Template files <https://github.com/GeoNode/geonode/tree/master/geonode/static/geonode/js/templates>`_ for generating commonly used html sections.
-    * A `front-end testing module <https://github.com/GeoNode/geonode/tree/master/geonode/static/geonode/js/tests>`_ to test GeoNode javascript.
+    * A `front-end testing module <https://github.com/GeoNode/geonode/tree/master/geonode/static/geonode/js/tests>`_ to test GeoNode Javascript.
 
     The following concepts are particularly important for developing on top of the
     GeoNode's JavaScript framework.

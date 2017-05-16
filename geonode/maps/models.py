@@ -240,7 +240,7 @@ class Map(ResourceBase, GXPMapBase):
         bbox = None
         index = 0
 
-        DEFAULT_MAP_CONFIG, DEFAULT_BASE_LAYERS = default_map_config()
+        DEFAULT_MAP_CONFIG, DEFAULT_BASE_LAYERS = default_map_config(None)
 
         # Save the map in order to create an id in the database
         # used below for the maplayers.
@@ -552,6 +552,7 @@ class MapSnapshot(models.Model):
             "user": self.user.username if self.user else None,
             "url": num_encode(self.id)
         }
+
 
 signals.pre_delete.connect(pre_delete_map, sender=Map)
 signals.post_save.connect(resourcebase_post_save, sender=Map)

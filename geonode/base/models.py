@@ -22,6 +22,10 @@ import datetime
 import math
 import os
 import logging
+import uuid
+import urllib
+import urllib2
+import cookielib
 
 from pyproj import transform, Proj
 from urlparse import urljoin, urlsplit
@@ -36,6 +40,7 @@ from django.contrib.staticfiles.templatetags import staticfiles
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.auth import get_user_model
 from django.db.models import signals
+from django.contrib.auth.signals import user_logged_in, user_logged_out
 from django.core.files.storage import default_storage as storage
 from django.core.files.base import ContentFile
 
@@ -56,6 +61,9 @@ from taggit.models import TagBase, ItemBase
 from treebeard.mp_tree import MP_Node
 
 from geonode.people.enumerations import ROLE_VALUES
+
+from oauthlib.common import generate_token
+from oauth2_provider.models import AccessToken, get_application_model
 
 logger = logging.getLogger(__name__)
 
@@ -307,6 +315,71 @@ class _HierarchicalTagManager(_TaggableManager):
             self.through.objects.get_or_create(tag=tag, **self._lookup_kwargs())
 
 
+class Thesaurus(models.Model):
+    """
+    Loadable thesaurus containing keywords in different languages
+    """
+    identifier = models.CharField(max_length=255, null=False, blank=False, unique=True)
+
+    # read from the RDF file
+    title = models.CharField(max_length=255, null=False, blank=False)
+    # read from the RDF file
+    date = models.CharField(max_length=20, default='')
+    # read from the RDF file
+    description = models.TextField(max_length=255, default='')
+
+    slug = models.CharField(max_length=64, default='')
+
+    def __unicode__(self):
+        return u"{0}".format(self.identifier)
+
+    class Meta:
+        ordering = ("identifier",)
+        verbose_name_plural = 'Thesauri'
+
+
+class ThesaurusKeyword(models.Model):
+    """
+    Loadable thesaurus containing keywords in different languages
+    """
+    # read from the RDF file
+    about = models.CharField(max_length=255, null=True, blank=True)
+    # read from the RDF file
+    alt_label = models.CharField(max_length=255, default='', null=True, blank=True)
+
+    thesaurus = models.ForeignKey('Thesaurus', related_name='thesaurus')
+
+    def __unicode__(self):
+        return u"{0}".format(self.alt_label)
+
+    class Meta:
+        ordering = ("alt_label",)
+        verbose_name_plural = 'Thesaurus Keywords'
+        unique_together = (("thesaurus", "alt_label"),)
+
+
+class ThesaurusKeywordLabel(models.Model):
+    """
+    Loadable thesaurus containing keywords in different languages
+    """
+
+    # read from the RDF file
+    lang = models.CharField(max_length=3)
+    # read from the RDF file
+    label = models.CharField(max_length=255)
+#    note  = models.CharField(max_length=511)
+
+    keyword = models.ForeignKey('ThesaurusKeyword', related_name='keyword')
+
+    def __unicode__(self):
+        return u"{0}".format(self.label)
+
+    class Meta:
+        ordering = ("keyword", "lang")
+        verbose_name_plural = 'Labels'
+        unique_together = (("keyword", "lang"),)
+
+
 class ResourceBaseManager(PolymorphicManager):
     def admin_contact(self):
         # this assumes there is at least one superuser
@@ -339,6 +412,8 @@ class ResourceBase(PolymorphicModel, PermissionLevelMixin, ItemBase):
                                         'it is first produced')
     keywords_help_text = _('commonly used word(s) or formalised word(s) or phrase(s) used to describe the subject '
                            '(space or comma-separated')
+    tkeywords_help_text = _('formalised word(s) or phrase(s) from a fixed thesaurus used to describe the subject '
+                            '(space or comma-separated')
     regions_help_text = _('keyword identifies a location')
     restriction_code_type_help_text = _('limitation(s) placed upon the access or use of the data.')
     constraints_other_help_text = _('other restrictions and legal prerequisites for accessing and using the resource or'
@@ -369,6 +444,7 @@ class ResourceBase(PolymorphicModel, PermissionLevelMixin, ItemBase):
 
     keywords = TaggableManager(_('keywords'), through=TaggedContentItem, blank=True, help_text=keywords_help_text,
                                manager=_HierarchicalTagManager)
+    tkeywords = models.ManyToManyField(ThesaurusKeyword, help_text=tkeywords_help_text, blank=True, null=True)
     regions = models.ManyToManyField(Region, verbose_name=_('keywords region'), blank=True,
                                      help_text=regions_help_text)
 
@@ -675,28 +751,34 @@ class ResourceBase(PolymorphicModel, PermissionLevelMixin, ItemBase):
         upload_to = 'thumbs/'
         upload_path = os.path.join('thumbs/', filename)
 
-        if storage.exists(upload_path):
-            # Delete if exists otherwise the (FileSystemStorage) implementation
-            # will create a new file with a unique name
-            storage.delete(os.path.join(upload_path))
+        try:
 
-        storage.save(upload_path, ContentFile(image))
+            if storage.exists(upload_path):
+                # Delete if exists otherwise the (FileSystemStorage) implementation
+                # will create a new file with a unique name
+                storage.delete(os.path.join(upload_path))
 
-        url_path = os.path.join(settings.MEDIA_URL, upload_to, filename).replace('\\', '/')
-        url = urljoin(settings.SITEURL, url_path)
+            storage.save(upload_path, ContentFile(image))
 
-        Link.objects.get_or_create(resource=self,
-                                   url=url,
-                                   defaults=dict(
-                                       name='Thumbnail',
-                                       extension='png',
-                                       mime='image/png',
-                                       link_type='image',
-                                   ))
+            url_path = os.path.join(settings.MEDIA_URL, upload_to, filename).replace('\\', '/')
+            url = urljoin(settings.SITEURL, url_path)
 
-        ResourceBase.objects.filter(id=self.id).update(
-            thumbnail_url=url
-        )
+            Link.objects.get_or_create(resource=self,
+                                       url=url,
+                                       defaults=dict(
+                                           name='Thumbnail',
+                                           extension='png',
+                                           mime='image/png',
+                                           link_type='image',
+                                       ))
+
+            ResourceBase.objects.filter(id=self.id).update(
+                thumbnail_url=url
+            )
+
+        except Exception:
+            logger.error('Error when generating the thumbnail for resource %s.' % self.id)
+            logger.error('Check permissions for file %s.' % upload_path)
 
     def set_missing_info(self):
         """Set default permissions and point of contacts.
@@ -865,4 +947,124 @@ def rating_post_save(instance, *args, **kwargs):
     """
     ResourceBase.objects.filter(id=instance.object_id).update(rating=instance.rating)
 
+
 signals.post_save.connect(rating_post_save, sender=OverallRating)
+
+
+def do_login(sender, user, request, **kwargs):
+    """
+    Take action on user login. Generate a new user access_token to be shared
+    with GeoServer, and store it into the request.session
+    """
+    if user and user.is_authenticated():
+        token = None
+        try:
+            Application = get_application_model()
+            app = Application.objects.get(name="GeoServer")
+
+            # Lets create a new one
+            token = generate_token()
+
+            AccessToken.objects.get_or_create(user=user,
+                                              application=app,
+                                              expires=datetime.datetime.now() + datetime.timedelta(days=1),
+                                              token=token)
+        except:
+            u = uuid.uuid1()
+            token = u.hex
+
+        # Do GeoServer Login
+        url = "%s%s?access_token=%s" % (settings.OGC_SERVER['default']['PUBLIC_LOCATION'],
+                                        'ows?service=wms&version=1.3.0&request=GetCapabilities',
+                                        token)
+
+        cj = cookielib.CookieJar()
+        opener = urllib2.build_opener(urllib2.HTTPCookieProcessor(cj))
+
+        jsessionid = None
+        try:
+            opener.open(url)
+            for c in cj:
+                if c.name == "JSESSIONID":
+                    jsessionid = c.value
+        except:
+            u = uuid.uuid1()
+            jsessionid = u.hex
+
+        request.session['access_token'] = token
+        request.session['JSESSIONID'] = jsessionid
+
+
+def do_logout(sender, user, request, **kwargs):
+    """
+    Take action on user logout. Cleanup user access_token and send logout
+    request to GeoServer
+    """
+    if 'access_token' in request.session:
+        try:
+            Application = get_application_model()
+            app = Application.objects.get(name="GeoServer")
+
+            # Lets delete the old one
+            try:
+                old = AccessToken.objects.get(user=user, application=app)
+            except:
+                pass
+            else:
+                old.delete()
+        except:
+            pass
+
+        # Do GeoServer Logout
+        if 'access_token' in request.session:
+            access_token = request.session['access_token']
+        else:
+            access_token = None
+
+        if access_token:
+            url = "%s%s?access_token=%s" % (settings.OGC_SERVER['default']['PUBLIC_LOCATION'],
+                                            settings.OGC_SERVER['default']['LOGOUT_ENDPOINT'],
+                                            access_token)
+            header_params = {
+                "Authorization": ("Bearer %s" % access_token)
+            }
+        else:
+            url = "%s%s" % (settings.OGC_SERVER['default']['PUBLIC_LOCATION'],
+                            settings.OGC_SERVER['default']['LOGOUT_ENDPOINT'])
+
+        param = {}
+        data = urllib.urlencode(param)
+
+        cookies = None
+        for cook in request.COOKIES:
+            name = str(cook)
+            value = request.COOKIES.get(name)
+            if name == 'csrftoken':
+                header_params['X-CSRFToken'] = value
+
+            cook = "%s=%s" % (name, value)
+            if not cookies:
+                cookies = cook
+            else:
+                cookies = cookies + '; ' + cook
+
+        if cookies:
+            if 'JSESSIONID' in request.session and request.session['JSESSIONID']:
+                cookies = cookies + '; JSESSIONID=' + request.session['JSESSIONID']
+            header_params['Cookie'] = cookies
+
+        gs_request = urllib2.Request(url, data, header_params)
+
+        try:
+            urllib2.urlopen(gs_request).open()
+        except:
+            pass
+
+        if 'access_token' in request.session:
+            del request.session['access_token']
+
+        request.session.modified = True
+
+
+user_logged_in.connect(do_login)
+user_logged_out.connect(do_logout)

@@ -16,7 +16,7 @@ importlayers
 
 Imports a file or folder with geospatial files to GeoNode.
 
-It supports data in Shapefile and GeoTiff format. It also picks up the styles if a ``.sld`` file is present.
+It supports data in Shapefile and GeoTIFF format. It also picks up the styles if a ``.sld`` file is present.
 
 Usage::
 
@@ -81,7 +81,7 @@ Usage::
 
 Additional options::
 
-    Usage: manage.py updatelayers [options] 
+    Usage: manage.py updatelayers [options]
 
     Update the GeoNode application with data from GeoServer
 
@@ -131,7 +131,7 @@ Usage::
 
 Additional options::
 
-    Usage: manage.py fixsitename [options] 
+    Usage: manage.py fixsitename [options]
 
     Options:
       -v VERBOSITY, --verbosity=VERBOSITY
@@ -147,3 +147,36 @@ Additional options::
       --traceback           Raise on exception
       --version             show program's version number and exit
       -h, --help            show this help message and exit
+
+
+delete_orphaned_files
+=====================
+
+Deletes orphaned files of deleted documents.
+
+Usage::
+
+   python manage.py delete_orphaned_files
+
+delete_orphaned_thumbs
+======================
+
+Deletes orphaned thumbnails of deleted GeoNode resources (Layers, Maps and Documents).
+
+Usage::
+
+   python manage.py delete_orphaned_thumbs
+
+
+fix_baselayers
+==============
+
+Fix base layers for all of the GeoNode maps or for a given map.
+
+Usage::
+
+  # fix base layers for all of the GeoNode map
+  python manage.py fix_baselayers
+
+  # fix base layers for a given map
+  python manage.py fix_baselayers map_id

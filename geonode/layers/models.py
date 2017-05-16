@@ -119,11 +119,19 @@ class Layer(ResourceBase):
 
     upload_session = models.ForeignKey('UploadSession', blank=True, null=True)
 
-    service = models.ForeignKey(
-        'services.Service',
-        null=True,
-        blank=True,
-        related_name='layer_set')
+    @property
+    def is_remote(self):
+        return self.storeType == "remoteStore"
+
+    @property
+    def service(self):
+        """Get the related service object dynamically
+        """
+        service_layers = self.servicelayer_set.all()
+        if len(service_layers) == 0:
+            return None
+        else:
+            return service_layers[0].service
 
     def is_vector(self):
         return self.storeType == 'dataStore'
@@ -160,21 +168,21 @@ class Layer(ResourceBase):
 
     @property
     def ows_url(self):
-        if self.storeType == "remoteStore":
+        if self.is_remote:
             return self.service.base_url
         else:
             return settings.OGC_SERVER['default']['PUBLIC_LOCATION'] + "wms"
 
     @property
     def ptype(self):
-        if self.storeType == "remoteStore":
+        if self.is_remote:
             return self.service.ptype
         else:
             return "gxp_wmscsource"
 
     @property
     def service_typename(self):
-        if self.storeType == "remoteStore":
+        if self.is_remote:
             return "%s:%s" % (self.service.name, self.typename)
         else:
             return self.typename
@@ -260,10 +268,15 @@ class Layer(ResourceBase):
     def class_name(self):
         return self.__class__.__name__
 
+    @property
+    def geogig_enabled(self):
+        return (len(self.link_set.geogig()) > 0)
 
-class LayerStyles(models.Model):
-    layer = models.ForeignKey(Layer)
-    style = models.ForeignKey(Style)
+    @property
+    def geogig_link(self):
+        if(self.geogig_enabled):
+            return getattr(self.link_set.filter(name__icontains='clone in geogig').first(), 'url', None)
+        return None
 
 
 class UploadSession(models.Model):
@@ -491,8 +504,19 @@ def pre_delete_layer(instance, sender, **kwargs):
     Remove any associated style to the layer, if it is not used by other layers.
     Default style will be deleted in post_delete_layer
     """
-    if instance.service:
+    if instance.is_remote:
+        # we need to delete the maplayers here because in the post save layer.service is not available anymore
+        # REFACTOR
+        from geonode.maps.models import MapLayer
+        if instance.typename:
+            logger.debug(
+                "Going to delete associated maplayers for [%s]",
+                instance.typename.encode('utf-8'))
+            MapLayer.objects.filter(
+                name=instance.typename,
+                ows_url=instance.ows_url).delete()
         return
+
     logger.debug(
         "Going to delete the styles associated for [%s]",
         instance.typename.encode('utf-8'))
@@ -515,6 +539,9 @@ def post_delete_layer(instance, sender, **kwargs):
     Removed the layer from any associated map, if any.
     Remove the layer default style.
     """
+    if instance.is_remote:
+        return
+
     from geonode.maps.models import MapLayer
     if instance.typename:
         logger.debug(
@@ -524,8 +551,6 @@ def post_delete_layer(instance, sender, **kwargs):
             name=instance.typename,
             ows_url=instance.ows_url).delete()
 
-    if instance.service:
-        return
     if instance.typename:
         logger.debug(
             "Going to delete the default style for [%s]",

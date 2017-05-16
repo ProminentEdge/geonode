@@ -28,6 +28,10 @@ from geonode.catalogue.backends.generic import CatalogueBackend as GenericCatalo
 from geonode.catalogue.backends.generic import METADATA_FORMATS
 from shapely.geometry.base import ReadingError
 
+true_value = 'true'
+if 'sqlite' in settings.DATABASES['default']['ENGINE']:
+    true_value = '1'
+
 # pycsw settings that the user shouldn't have to worry about
 CONFIGURATION = {
     'server': {
@@ -46,6 +50,7 @@ CONFIGURATION = {
     },
     'repository': {
         'source': 'geonode',
+        'filter': 'is_published = %s' % true_value,
         'mappings': os.path.join(os.path.dirname(__file__), 'pycsw_local_mappings.py')
     }
 }
@@ -145,7 +150,6 @@ class CatalogueBackend(GenericCatalogueBackend):
                 'typenames': formats,
                 'resulttype': 'results',
                 'constraintlanguage': 'CQL_TEXT',
-                'constraint': 'csw:AnyText like "%%%s%%"' % keywords,
                 'outputschema': 'http://www.isotc211.org/2005/gmd',
                 'constraint': None,
                 'startposition': start,

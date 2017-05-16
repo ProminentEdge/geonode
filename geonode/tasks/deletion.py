@@ -21,6 +21,9 @@
 from geonode.layers.models import Layer
 from geonode.maps.models import Map
 from celery.task import task
+from celery.utils.log import get_task_logger
+
+logger = get_task_logger(__name__)
 
 
 @task(name='geonode.tasks.deletion.delete_layer', queue='cleanup')
@@ -28,6 +31,7 @@ def delete_layer(object_id):
     """
     Deletes a layer.
     """
+    logger.info('Deleting Layer ID {0}'.format(object_id))
     try:
         layer = Layer.objects.get(id=object_id)
     except Layer.DoesNotExist:
@@ -49,3 +53,15 @@ def delete_map(object_id):
 
     map_obj.layer_set.all().delete()
     map_obj.delete()
+
+
+@task(name='geonode.tasks.deletion.delete_orphaned_document_files', queue='cleanup')
+def delete_orphaned_document_files():
+    from geonode.documents.utils import delete_orphaned_document_files
+    delete_orphaned_document_files()
+
+
+@task(name='geonode.tasks.deletion.delete_orphaned_thumbs', queue='cleanup')
+def delete_orphaned_thumbnails():
+    from geonode.documents.utils import delete_orphaned_thumbs
+    delete_orphaned_thumbs()

@@ -1,21 +1,14 @@
 {% load i18n %}
 {% verbatim %}
 <div class="row">
-  <div ng-if="results.length == 0">
-    <div><h3>No {{ dataValue || 'content' }} created yet.</h3></div>
+  <div ng-if="results.length == 0" ng-cloak>
+    <div><h3>No content created yet.</h3></div>
   </div>
   <article ng-repeat="item in results" resource_id="{{ item.id }}" ng-cloak class="ng-cloak">
     <div class="col-xs-12 item-container">
       <div class="col-xs-12 profile-avatar">
         <div class="col-xs-4 item-thumb">
-          <ul style="margin-top:15px">
-              <div ng-init="props=item.thumbnail_url.split(',')" ng-if="item.detail_url.indexOf('sensor') > -1" >
-                  <li ng-init="prop_name=prop.split('/').slice(-1)[0]" ng-repeat="prop in props">
-                      {{ prop_name }}
-                  </li>
-              </div>
-          </ul>
-          <a ng-if="item.detail_url.indexOf('sensor') == -1" href="{{ item.detail_url }}"><img ng-src="{{ item.thumbnail_url }}" /></a>
+          <a href="{{ item.detail_url }}"><img ng-src="{{ item.thumbnail_url }}" /></a>
         </div>
         <div class="col-xs-8 item-details">
           {% endverbatim %}

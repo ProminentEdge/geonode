@@ -15,6 +15,9 @@ Advanced Data Management and Processing
     adv_vector/index
     spatial_processing/index
 
+:ref:`osm2pgsql`
+    Learn how to load OSM Data into GeoNode
+
 :ref:`geoserver.adding_data`
     Learn how to add data to GeoServer.
 
@@ -22,10 +25,11 @@ Advanced Data Management and Processing
     Learn how to create pretty styles for the Maps in GeoServer.
 
 :ref:`geoserver.raster_data`
-    Learn advanced tecquinques for the delivery of Raster Data with GeoServer.
+    Learn advanced techniques for the delivery of Raster Data with GeoServer.
 
 :ref:`geoserver.vector_data`
-    Learn advanced tecquinques for the delivery of Vectorial Data with GeoServer.
+    Learn advanced techniques for the delivery of Vectorial Data with GeoServer.
 
 :ref:`spatial_processing`
     Learn how to do Spatial Processing using external tools.
+
