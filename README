@@ -19,14 +19,14 @@ GeoNode OpenSensorHub Installation
 
 Simply copy the geonode_opensensorhub contrib folder from this project and drop it into the contrib folder in your GeoNode project then...
 
-1. Ensure the contrib module is added to `GEONODE_CONTRIB_APPS` in `settings.py`
-2. Add the following to `geonode/urls.py`
+1. Ensure the contrib module is added to ``GEONODE_CONTRIB_APPS`` in ``settings.py``
+2. Add the following to ``geonode/urls.py``
     if "geonode.contrib.geonode_opensensorhub" in settings.INSTALLED_APPS:
         urlpatterns += patterns('',
                             (r'', include('geonode.contrib.geonode_opensensorhub.urls')),
                             )
-3. Depending on your version of GeoNode, you may need to add a 'sensors' link to ```base.html``` to access ```sensors_list.html``` from the main navbar.
-4. Start the application with ```paver start``` which will also generate the OSH-related models for the database.
+3. Depending on your version of GeoNode, you may need to add a 'sensors' link to ``base.html`` to access ``sensors_list.html`` from the main navbar.
+4. Start the application with ``paver start`` which will also generate the OSH-related models for the database.
 5. If you receive any database related errors from step 4, run migrations and then restart the application.
 
 
