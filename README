@@ -6,8 +6,31 @@
     :alt: Build Status
     :target: http://travis-ci.org/GeoNode/geonode
 
+GeoNode OpenSensorHub
+=====================
 
-GeoNode Support 
+This branch is home to the development of the GeoNode OpenSensorHub (OSH) contrib module. The module is verified compatible with GeoNode up to v2.6.x
+
+The version and stability of GeoNode on this branch is not guaranteed and may conflict with other deployments. It is highly recommended to clone
+this branch only to obtain the contrib module and then use it in your deployment.
+
+GeoNode OpenSensorHub Installation
+==================================
+
+Simply copy the geonode_opensensorhub contrib folder from this project and drop it into the contrib folder in your GeoNode project then...
+
+1. Ensure the contrib module is added to `GEONODE_CONTRIB_APPS` in `settings.py`
+2. Add the following to `geonode/urls.py`
+    if "geonode.contrib.geonode_opensensorhub" in settings.INSTALLED_APPS:
+        urlpatterns += patterns('',
+                            (r'', include('geonode.contrib.geonode_opensensorhub.urls')),
+                            )
+3. Depending on your version of GeoNode, you may need to add a 'sensors' link to `base.html` to access `sensors_list.html` from the main navbar.
+4. Start the application with `paver start` which will also generate the OSH-related models for the database.
+5. If you receive any database related errors from step 4, run migrations and then restart the application.
+
+
+GeoNode Support
 ===============
 
 To get support, give feedback and suggestions please use the GeoNode official channels, the users mailing list: http://lists.osgeo.org/pipermail/geonode-users/ and the developers mailing list: http://lists.osgeo.org/pipermail/geonode-devel/.
@@ -56,8 +79,8 @@ Or if you want to use the provided Makefile::
 
     # pull latest images
     make pull
-    
-**Note:**  
+
+**Note:**
 For deveployment you need to add `geonode` alias into `/ect/hosts/` file as following:
 
 ```
@@ -72,7 +95,7 @@ $ sudo vim /etc/hosts
 255.255.255.255 broadcasthost
 ::1             localhost
 ```
-To access GeoNode just enter the following url: `http://geonode/` on your web browser. 
+To access GeoNode just enter the following url: `http://geonode/` on your web browser.
 For GeoServer: `http://geonode/geoserver/web/`
 
 
